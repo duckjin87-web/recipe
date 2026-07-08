@@ -329,6 +329,27 @@
   .shape-lock-note{display:none;font-size:11px;color:var(--stamp-red);font-family:'IBM Plex Mono',monospace;}
   .shape-card.disabled .shape-lock-note{display:block;}
   .shape-card.disabled .shape-presets,.shape-card.disabled .dim-row{opacity:.35;pointer-events:none;}
+  /* design reference (01·5) */
+  .ref-card{background:#fff;border:1px solid var(--ink);}
+  .ref-head{background:var(--stamp-blue);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;gap:10px;}
+  .ref-head #refTarget{opacity:.85;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ref-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:820px){.ref-body{grid-template-columns:1fr;}}
+  .ref-links{display:flex;flex-direction:column;gap:8px;}
+  .ref-link{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line);border-radius:2px;padding:9px 11px;text-decoration:none;color:var(--ink);font-size:12.5px;transition:border-color .15s,background .15s;}
+  .ref-link:hover{border-color:var(--stamp-blue);background:#f5f8ff;}
+  .ref-link.disabled{opacity:.4;pointer-events:none;}
+  .ref-link .ico{font-size:15px;}
+  .ref-link .q{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
+  .ref-note-wrap{display:flex;flex-direction:column;gap:8px;}
+  .ref-note-head{font-size:12px;font-weight:700;}
+  .ref-note-head .ref-sub{font-weight:400;color:var(--ink-soft);font-size:10.5px;font-family:'IBM Plex Mono',monospace;}
+  .ref-note{border:1px dashed var(--line);padding:10px 12px;font-size:12.5px;line-height:1.7;min-height:66px;background:#fcfcfa;}
+  .ref-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .ref-grade{font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .ref-apply-btn{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;border:1.5px solid var(--matcha-d);background:#fff;color:var(--matcha-d);padding:7px 12px;cursor:pointer;border-radius:2px;}
+  .ref-apply-btn:hover{background:var(--matcha-d);color:#fff;}
+  .ref-foot{padding:10px 14px;border-top:1px solid var(--line);font-size:10.5px;color:var(--ink-soft);line-height:1.6;font-family:'IBM Plex Mono',monospace;}
   .comp-card{background:#fff;border:1px solid var(--ink);}
   .comp-head{background:var(--matcha-d);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
   .comp-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
@@ -482,6 +503,31 @@
       <span class="sec-note">업로드된 화장품 포장사양서 원본 기재값</span>
     </div>
     <div class="spec-grid" id="specGrid"></div>
+  </section>
+
+  <!-- 01.5 DESIGN REFERENCE -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01·5</span><h2>디자인 레퍼런스 검색 · 종합</h2>
+      <span class="sec-note">제품명 기준 1차 웹검색 → 찾은 이미지를 02B에 넣으면 3D에 반영</span>
+    </div>
+    <div class="ref-card">
+      <div class="ref-head"><span>DESIGN REFERENCE · 제품명 기반</span><span id="refTarget">—</span></div>
+      <div class="ref-body">
+        <div class="ref-links" id="refLinks"></div>
+        <div class="ref-note-wrap">
+          <div class="ref-note-head">디자인 종합 노트 <span class="ref-sub">(검색 결과에서 색상·레이아웃·형태를 정리 · 클릭 편집)</span></div>
+          <div class="ref-note fv" data-f="designNote" data-ph="예: 화이트 카톤 + 다크그린 타이포 + 말차그린 원형 모티프, 슬로건 'Curing skin, Caring beauty'">화이트 바디 + 다크그린 로고 타이포 + 말차그린 원형 모티프. 브랜드 슬로건 "Curing skin, Caring beauty". (동일 라인 제주말차 클레이 · 공개 판매채널 기준)</div>
+          <div class="ref-actions">
+            <span class="ref-grade">종합 출처등급 <span class="grade g-b">B</span> 공개채널 확인</span>
+            <button type="button" class="ref-apply-btn" id="refApplyBtn">종합 색상 → 3D 전면 반영</button>
+          </div>
+        </div>
+      </div>
+      <div class="ref-foot">
+        ※ 브라우저 보안(CORS)·판매몰 봇차단으로 <b>페이지가 외부 사이트를 직접 긁을 수는 없습니다.</b> 검색은 링크로 열고, 찾은 이미지는 02B에 넣어 3D에 반영하세요. 자동 종합이 필요하면 백엔드(검색 API) 연동이 별도로 필요합니다.
+      </div>
+    </div>
   </section>
 
   <!-- 02 3D -->
@@ -1080,6 +1126,8 @@
     }
     // 착인 사양 입력 → 형상 카드 활성화 상태 갱신
     if(f==='imprintPos'||f==='imprintColor'||f==='imprint1'||f==='imprint2') refreshShapeEnable();
+    // 제품명 변경 → 디자인 레퍼런스 검색어 갱신
+    if(f==='nameKr'||f==='nameEn'||f==='abbr'||f==='abbr2') renderRefLinks();
   }
   function get(f){ return state[f] || ''; }
 
@@ -1640,6 +1688,54 @@
   }
 
   /* =====================================================================
+     DESIGN REFERENCE (01·5) — 제품명 기반 검색 링크 + 색상 종합 반영
+     ===================================================================== */
+  const SHOP = [
+    {ico:'🟢', name:'네이버 블로그·후기', tag:'후기', url:q=>'https://search.naver.com/search.naver?where=view&query='+q},
+    {ico:'🛒', name:'네이버 쇼핑',        tag:'판매', url:q=>'https://search.shopping.naver.com/search/all?query='+q},
+    {ico:'🖼️', name:'구글 이미지',        tag:'이미지', url:q=>'https://www.google.com/search?tbm=isch&q='+q},
+    {ico:'📦', name:'쿠팡',              tag:'판매', url:q=>'https://www.coupang.com/np/search/products?q='+q},
+    {ico:'🏬', name:'공식몰·브랜드스토어', tag:'공식', url:q=>'https://www.google.com/search?q='+q+'%20%EA%B3%B5%EC%8B%9D%EB%AA%B0%20OR%20%EB%B8%8C%EB%9E%9C%EB%93%9C%EC%8A%A4%ED%86%A0%EC%96%B4'}
+  ];
+  function refQuery(){ return (get('nameKr')||get('nameEn')||get('abbr')||'').trim(); }
+  function renderRefLinks(){
+    const wrap=document.getElementById('refLinks'); if(!wrap) return;
+    const q=refQuery(); const eq=encodeURIComponent(q);
+    const tgt=document.getElementById('refTarget'); if(tgt) tgt.textContent = q || '제품명 미입력';
+    wrap.innerHTML = SHOP.map(s=>
+      '<a class="ref-link'+(q?'':' disabled')+'" target="_blank" rel="noopener noreferrer" href="'+(q?s.url(eq):'#')+'">'+
+      '<span class="ico">'+s.ico+'</span><span>'+s.name+'</span><span class="q">'+s.tag+' ↗</span></a>').join('');
+  }
+  const REF_PALETTES = [
+    {re:/블랙|검정|흑색|\bblack\b|다크(?!그린|green)/i, name:'블랙', bg:'linear-gradient(180deg,#2b2b28 0%,#191917 100%)', ink:'#efece2', accent:'#c9a24a', swatch:'radial-gradient(circle at 40% 35%,#565650,#222)'},
+    {re:/블루|파랑|남색|blue|navy/i,  name:'블루', bg:'linear-gradient(180deg,#f7f9fd 0%,#eaf0fa 100%)', ink:'#1f3350', accent:'#3a5a9c', swatch:'radial-gradient(circle at 40% 35%,#9db6e0,#3a5a9c)'},
+    {re:/핑크|분홍|로즈|pink|rose/i,  name:'핑크', bg:'linear-gradient(180deg,#fdf7f9 0%,#f8e8ef 100%)', ink:'#7a2f4a', accent:'#c56a86', swatch:'radial-gradient(circle at 40% 35%,#e8b7c8,#c56a86)'},
+    {re:/옐로|노랑|골드|yellow|gold/i,name:'옐로', bg:'linear-gradient(180deg,#fdfbf3 0%,#f5eecf 100%)', ink:'#6a5410', accent:'#c79a1e', swatch:'radial-gradient(circle at 40% 35%,#f0d97a,#c79a1e)'}
+  ];
+  const REF_GREEN = {name:'말차그린', bg:'linear-gradient(180deg,#fdfcf9 0%,#f2f5ec 100%)', ink:'#1f3a2d', accent:'#4f7a4a', swatch:'radial-gradient(circle at 62% 68%, rgba(255,255,255,.35) 0 18%, transparent 20%),radial-gradient(circle at 34% 30%, #b9cc90, #86a25e 55%, #5d7a45)'};
+  function detectPalette(note){
+    const t=note||'';
+    if(/말차|matcha|그린|초록|녹색|green/i.test(t)) return REF_GREEN;   // 그린/말차 우선
+    const hit=REF_PALETTES.find(p=>p.re.test(t));
+    return hit || REF_GREEN;
+  }
+  function applyRefColors(pal){
+    const m=activeModel(); if(!m) return;
+    const front=m.querySelector('[data-face="front"]');
+    if(front && pal.bg && !front.classList.contains('has-photo')) front.style.background=pal.bg;
+    m.querySelectorAll('.fb-brand,.top-logo,.tbn,.lid-brand,.fb-kr,.tbv').forEach(e=>{ e.style.color=pal.ink; });
+    m.querySelectorAll('.fb-name em').forEach(e=>{ e.style.color=pal.accent; });
+    const sw=m.querySelector('.fb-swatch'); if(sw&&pal.swatch) sw.style.background=pal.swatch;
+    return pal;
+  }
+  const refApplyBtn=document.getElementById('refApplyBtn');
+  if(refApplyBtn) refApplyBtn.addEventListener('click', ()=>{
+    const pal=applyRefColors(detectPalette(get('designNote')));
+    refApplyBtn.textContent='전면 반영됨 · '+(pal?pal.name:'')+' 계열';
+    setTimeout(()=>{ refApplyBtn.textContent='종합 색상 → 3D 전면 반영'; }, 1600);
+  });
+
+  /* =====================================================================
      PDF INTAKE + PARSE + AUTO-DETECT
      ===================================================================== */
   const drop=document.getElementById('siDrop'), input=document.getElementById('siInput'), status=document.getElementById('siStatus');
@@ -1757,6 +1853,7 @@
   wireIntake('dzVD','listVD', appliedVD);
   setType('carton', {silent:true});
   flashDetect('기본값', 'carton');
+  renderRefLinks();
 })();
 </script>
 
