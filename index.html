@@ -351,6 +351,23 @@
   .ref-apply-btn{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;border:1.5px solid var(--matcha-d);background:#fff;color:var(--matcha-d);padding:7px 12px;cursor:pointer;border-radius:2px;}
   .ref-apply-btn:hover{background:var(--matcha-d);color:#fff;}
   .ref-foot{padding:10px 14px;border-top:1px solid var(--line);font-size:10.5px;color:var(--ink-soft);line-height:1.6;font-family:'IBM Plex Mono',monospace;}
+  /* auto search */
+  .ref-auto{padding:0 14px 14px;border-top:1px solid var(--line);}
+  .ref-auto-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0 8px;font-size:12px;font-weight:700;}
+  .ref-proxy-in{flex:1;min-width:200px;padding:6px 9px;border:1.5px solid var(--line);border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+  .ref-auto-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);line-height:1.6;padding-bottom:8px;}
+  .ref-auto-status .warn{color:var(--stamp-red);}
+  .ref-auto-status .done{color:#2c5a34;font-weight:600;}
+  .ref-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}
+  .ref-thumb{border:1px solid var(--line);position:relative;background:#f3f2ec;overflow:hidden;}
+  .ref-thumb img{width:100%;height:84px;object-fit:cover;display:block;}
+  .ref-thumb .src{position:absolute;top:3px;left:3px;font-family:'IBM Plex Mono',monospace;font-size:8px;background:rgba(0,0,0,.6);color:#fff;padding:1px 4px;border-radius:2px;}
+  .ref-thumb .to02b{position:absolute;bottom:0;left:0;right:0;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;border:none;background:var(--stamp-blue);color:#fff;padding:4px;cursor:pointer;}
+  .ref-thumb .to02b:disabled{background:#7a8aa5;cursor:default;}
+  .ref-snips{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
+  .ref-snip{font-size:11.5px;line-height:1.5;border-bottom:1px dotted var(--line);padding-bottom:4px;}
+  .ref-snip a{color:var(--stamp-blue);text-decoration:none;}
+  .ref-snip .tg{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink-soft);margin-right:5px;}
   .comp-card{background:#fff;border:1px solid var(--ink);}
   .comp-head{background:var(--matcha-d);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
   .comp-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
@@ -526,8 +543,18 @@
           </div>
         </div>
       </div>
+      <div class="ref-auto">
+        <div class="ref-auto-head">
+          <span>자동 검색 (네이버 + 구글 · 프록시 필요)</span>
+          <input type="url" id="refProxyUrl" class="ref-proxy-in" placeholder="프록시 URL 예: https://your-proj.vercel.app" spellcheck="false">
+          <button type="button" class="ref-apply-btn" id="refSearchBtn">&#128269; 자동 검색</button>
+        </div>
+        <div class="ref-auto-status" id="refAutoStatus">프록시 URL을 넣으면 제품명(한글)으로 네이버·구글을 한 번에 검색해 썸네일·후기·판매정보를 종합합니다. (배포는 <b>proxy/</b> 폴더 참고)</div>
+        <div class="ref-thumbs" id="refThumbs"></div>
+        <div class="ref-snips" id="refSnips"></div>
+      </div>
       <div class="ref-foot">
-        ※ 브라우저 보안(CORS)·판매몰 봇차단으로 <b>페이지가 외부 사이트를 직접 긁을 수는 없습니다.</b> 검색은 링크로 열고, 찾은 이미지는 02B에 넣어 3D에 반영하세요. 자동 종합이 필요하면 백엔드(검색 API) 연동이 별도로 필요합니다.
+        ※ API 키는 <b>프록시(Vercel) 환경변수</b>에만 저장되며 페이지엔 노출되지 않습니다. 프록시 없이도 위 검색 링크·수동 입력은 동작합니다.
       </div>
     </div>
   </section>
@@ -1753,6 +1780,74 @@
     refApplyBtn.textContent='전면 반영됨 · '+(pal?pal.name:'')+' 계열';
     setTimeout(()=>{ refApplyBtn.textContent='종합 색상 → 3D 전면 반영'; }, 1600);
   });
+
+  /* --- 자동 검색 (프록시 경유 · 네이버+구글) --- */
+  const proxyIn=document.getElementById('refProxyUrl');
+  const refSearchBtn=document.getElementById('refSearchBtn');
+  const refAutoStatus=document.getElementById('refAutoStatus');
+  const refThumbs=document.getElementById('refThumbs');
+  const refSnips=document.getElementById('refSnips');
+  if(proxyIn){
+    proxyIn.value = localStorage.getItem('refProxyUrl')||'';
+    proxyIn.addEventListener('change', ()=>{ localStorage.setItem('refProxyUrl', proxyIn.value.trim().replace(/\/+$/,'')); });
+  }
+  const proxyBase = ()=> (proxyIn && proxyIn.value.trim().replace(/\/+$/,'')) || '';
+
+  async function fetchToDataUrl(base, url){
+    const r=await fetch(base+'/api/img?url='+encodeURIComponent(url));
+    if(!r.ok) throw new Error('img '+r.status);
+    const blob=await r.blob();
+    return await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob); });
+  }
+  function autoDraftNote(d){
+    const titles=[].concat((d.blogs||[]).map(b=>b.title),(d.shops||[]).map(s=>s.title)).join(' ');
+    const colors=[];
+    [[/화이트|white/i,'화이트'],[/블랙|검정/i,'블랙'],[/그린|말차|초록/i,'말차그린'],[/블루|파랑/i,'블루'],[/핑크|분홍/i,'핑크'],[/골드|노랑|옐로/i,'골드']]
+      .forEach(([re,name])=>{ if(re.test(titles)) colors.push(name); });
+    const cur=get('designNote');
+    const draft='[자동초안] 검색 상위 색상 키워드: '+(colors.length?colors.join(', '):'미검출')+'. 썸네일 확인 후 색상·레이아웃·형태를 정리하세요.';
+    if(!cur || /^\[자동초안\]/.test(cur) || /제주말차|Curing skin/.test(cur)) setField('designNote', draft);
+  }
+  function renderResults(d, base){
+    refThumbs.innerHTML=''; refSnips.innerHTML='';
+    (d.images||[]).forEach(im=>{
+      const cell=el('ref-thumb');
+      cell.innerHTML='<span class="src">'+esc(im.source||'')+'</span>'+
+        '<img src="'+esc(im.thumb||im.url)+'" loading="lazy" referrerpolicy="no-referrer">'+
+        '<button class="to02b" type="button">→ 02B 검수사진</button>';
+      cell.querySelector('.to02b').addEventListener('click', ev=>{
+        const btn=ev.currentTarget; btn.disabled=true; btn.textContent='불러오는 중…';
+        fetchToDataUrl(base, im.url||im.thumb)
+          .then(url=>{ addThumb(document.getElementById('listQC'), url, '웹검색', currentFaces()[0].key, appliedQC); btn.textContent='02B에 추가됨'; })
+          .catch(()=>{ btn.disabled=false; btn.textContent='실패 · 재시도'; });
+      });
+      refThumbs.appendChild(cell);
+    });
+    const snip=(tag,title,link,desc)=>'<div class="ref-snip"><span class="tg">'+tag+'</span><a href="'+esc(link)+'" target="_blank" rel="noopener noreferrer">'+esc(title)+'</a>'+(desc?' — '+esc(desc):'')+'</div>';
+    let html='';
+    (d.blogs||[]).slice(0,5).forEach(b=>html+=snip('후기', b.title, b.link, b.desc));
+    (d.shops||[]).slice(0,5).forEach(s=>html+=snip('판매', s.title+(s.price?' ('+Number(s.price).toLocaleString()+'원)':''), s.link, s.mall));
+    refSnips.innerHTML=html;
+    autoDraftNote(d);
+  }
+  async function autoSearch(){
+    const base=proxyBase(), q=refQuery();
+    if(!base){ refAutoStatus.innerHTML='<span class="warn">프록시 URL을 먼저 입력하세요.</span> (proxy/ 폴더를 Vercel에 배포 후 URL 입력)'; return; }
+    if(!q){ refAutoStatus.innerHTML='<span class="warn">제품명(국문)을 먼저 입력/추출하세요.</span>'; return; }
+    refAutoStatus.textContent='검색 중… '+q; refThumbs.innerHTML=''; refSnips.innerHTML='';
+    try{
+      const r=await fetch(base+'/api/search?q='+encodeURIComponent(q));
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const d=await r.json();
+      renderResults(d, base);
+      const parts=['이미지 '+(d.images||[]).length, '후기 '+(d.blogs||[]).length, '판매 '+(d.shops||[]).length];
+      refAutoStatus.innerHTML='<span class="done">'+esc(q)+' 검색 완료</span> — '+parts.join(' · ')+
+        ((d.errors&&d.errors.length)?' · <span class="warn">'+esc(d.errors.join(', '))+'</span>':'');
+    }catch(e){
+      refAutoStatus.innerHTML='<span class="warn">검색 실패: '+esc(e.message)+'</span> — 프록시 URL·키·CORS(ALLOW_ORIGIN) 확인.';
+    }
+  }
+  if(refSearchBtn) refSearchBtn.addEventListener('click', autoSearch);
 
   /* =====================================================================
      PDF INTAKE + PARSE + AUTO-DETECT
