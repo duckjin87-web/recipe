@@ -122,6 +122,7 @@
   .fv:hover{border-bottom-color:var(--line);}
   .fv:focus{border-bottom-color:var(--stamp-blue);background:#f5f8ff;}
   .fv.empty{color:#b7b5a8;font-weight:400;}
+  .fv:empty::before{content:attr(data-ph);color:#c0beb2;font-weight:400;font-style:italic;}
   .gbadge{
     display:inline-block;font-family:'IBM Plex Mono',monospace;
     font-size:9px;font-weight:600;letter-spacing:.02em;
@@ -477,7 +478,8 @@
           <input type="file" accept="application/pdf,image/*" id="siInput">
         </div>
       </div>
-      <div class="si-status" id="siStatus">대기 중 — 사양서를 첨부하거나 아래에서 포장 유형을 고르세요. 미기재 항목은 <span class="gbadge">현장포장사양관리 적용 › 확인필요</span> 기준값이 자동 적용됩니다.</div>
+      <div class="si-status" id="siStatus">대기 중 — 사양서를 첨부하거나 아래에서 포장 유형을 고르세요. 미기재 항목은 <span class="gbadge">현장포장사양관리 적용 › 확인필요</span> 기준값이 자동 적용됩니다. <b>사양서 첨부 시 기준정보는 자동으로 비워집니다.</b></div>
+      <div style="padding:0 14px 14px;"><button type="button" class="dz-btn" id="siClearBtn">&#129529; 기준정보 비우기 (샘플/이전값 삭제)</button></div>
     </div>
   </section>
 
@@ -1131,6 +1133,23 @@
   }
   function get(f){ return state[f] || ''; }
 
+  // 사양서 1건 = 1품목. 새 사양서 등록/비우기 시 이전(샘플 포함) 값 제거 → 미추출 필드가 남의 제품값으로 남지 않도록
+  const ITEM_FIELDS = ['matno','abbr','abbr2','nameKr','nameEn','volume','fillVol','setType','lot','lot2',
+    'customer','custcode','approved','owner','structure','cutType','cutLen',
+    'imprintPos','imprintPos2','imprintColor','imprintColor2','imprintMethod','imprintNote','imprint1','imprint2',
+    'components','inboxPos','inboxQty','inboxRem','outboxPos','outboxQty','outboxRem','taping',
+    'palletType','palletHeight','palletBox','palletTier','palletLabel','remainderRule','note','designNote'];
+  function clearItemFields(){
+    ITEM_FIELDS.forEach(f=>{ state[f]=''; });
+    document.querySelectorAll('.fv').forEach(el=>{ if(ITEM_FIELDS.indexOf(el.dataset.f)>=0){ el.textContent=''; el.classList.add('empty'); } });
+    Object.keys(SHAPE).forEach(k=>delete SHAPE[k]);
+    syncBinds(); refreshGuides();
+    if(typeof renderRefLinks==='function') renderRefLinks();
+    if(document.getElementById('compBody')) renderComponents();
+    if(typeof refreshShapeEnable==='function') refreshShapeEnable();
+    if(typeof updateShapeBadge==='function') updateShapeBadge();
+  }
+
   function computed(name){
     const en = get('nameEn');
     switch(name){
@@ -1750,7 +1769,10 @@
 
   async function handleFile(f){
     if(!f) return;
-    if(f.type==='application/pdf'){
+    const isPdf = f.type==='application/pdf', isImg = f.type.startsWith('image/');
+    if(!isPdf && !isImg) return;
+    clearItemFields();            // 새 사양서 등록 → 이전/샘플 값 제거(핵심 오류 수정)
+    if(isPdf){
       setStatus('PDF 분석 중… (pdf.js 로딩)');
       try{
         if(!window.pdfjsLib){
@@ -1772,8 +1794,8 @@
       }catch(err){
         setStatus('<span class="warn">PDF 분석 실패: '+err.message+'</span> — 오프라인이면 pdf.js CDN 접근이 필요합니다. 유형 선택 후 직접 입력으로 진행하세요.');
       }
-    } else if(f.type.startsWith('image/')){
-      setStatus('<span class="warn">이미지 사양서는 자동 추출을 지원하지 않습니다.</span> 위에서 포장 유형을 고르고, 점선 밑줄 값을 직접 입력하세요.');
+    } else if(isImg){
+      setStatus('<span class="warn">이미지/스캔 사양서는 자동 추출을 지원하지 않습니다.</span> 기준정보를 <b>비웠으니</b>, 위에서 포장 유형을 고르고 점선 밑줄 값을 사양서 보며 직접 입력하세요.');
     }
   }
   function loadScript(src){ return new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src=src; sc.onload=res; sc.onerror=()=>rej(new Error('CDN 로드 실패')); document.head.appendChild(sc); }); }
@@ -1797,20 +1819,28 @@
     const out={};
     const grab=(re,idx=1)=>{ const m=t.match(re); return m?m[idx].trim():''; };
     out.matno    = grab(/자재\s*번호\s*[:\s]*([0-9]{6,10})/);
-    out.abbr     = grab(/제품\s*약호\s*[:\s]*([A-Z0-9]{2,6}[-‐][A-Z0-9()]{2,14})/i);
-    out.nameKr   = grab(/제품명\s*[:\s]*([가-힣A-Za-z0-9.\s]{4,44}?)(?=\s{2,}|영문명|$)/m);
+    // 약호: 제품약호 우선, 없으면 자재내역(충전 시트)의 약호형 토큰
+    out.abbr     = grab(/제품\s*약호\s*[:\s]*([A-Z0-9]{2,6}[-‐][A-Z0-9()]{2,16})/i)
+                || grab(/자재\s*내역\s*[:\s]*([A-Z]{2,6}[-‐][A-Z0-9()]{2,16})/i);
+    // 제품명: 다음 라벨(영문명/충전용량/표시용량/자재/컷팅/고객사/단품·세트) 앞에서 종료
+    out.nameKr   = grab(/제품명\s*[:\s]*([가-힣A-Za-z0-9.()\s]{3,44}?)(?=\s*(?:영문명|충전\s*용량|표시\s*용량|자재|컷팅|고객사|단품|세트|셋트|$))/);
     out.nameEn   = grab(/영문명\s*[:\s]*([A-Za-z0-9.\s&'-]{6,60})/);
     out.volume   = grab(/표시\s*용량\s*[:\s]*([0-9]+\s?(?:ML|ml|mL|G|g))/);
     out.fillVol  = grab(/충전\s*용량\s*[:\s]*([0-9]+\s?(?:ML|ml|mL|G|g))/) || out.volume;
-    out.customer = grab(/고객사\s*[:\s]*((?:\(주\)|㈜|주식회사)?[가-힣A-Za-z0-9()]{2,20})/);
-    out.custcode = grab(/고객사\s*제품\s*코드\s*[:\s]*([A-Z0-9_]{4,18})/);
+    if(!out.volume) out.volume = out.fillVol;   // 충전 시트는 표시용량 대신 충전용량
+    out.customer = grab(/고객사\s*[:\s]*((?:주식회사|\(주\)|㈜)?\s?[가-힣A-Za-z0-9()]{2,20})/);
+    out.custcode = grab(/고객사\s*제품\s*코드\s*[:\s]*([A-Za-z0-9_\-]{4,20})/).replace(/^_+|_+$/g,'');
     out.setType  = grab(/(단품|세트|셋트)/);
-    out.lot      = grab(/([A-Z]{2,4})\s*기준/) ? grab(/([A-Z]{2,4}\s*기준)/) : '';
+    out.lot      = grab(/([A-Z]{2,4}\s*기준)/);
     out.approved = grab(/승인\s*일자\s*[:\s]*([0-9]{4}[-.\/][0-9]{2}[-.\/][0-9]{2})/);
-    out.cutType  = grab(/(일자컷팅|R컷팅|해당없음)/);
-    out.cutLen   = grab(/완제품\s*길이[^0-9]{0,6}([0-9]{2,4})/);
-    out.imprintPos   = grab(/위치[^가-힣A-Z]{0,6}(밀면|밑면|후면하단|후면\s*하단|압인\(앞,뒤\)|압인|측면|상단|하단|후면|전면)/);
-    out.imprintColor = grab(/색상[^가-힣A-Z]{0,6}(검정색?|흑색|백색|흰색|N\/A)/);
+    out.owner    = grab(/승인\s*일자\s*[:\s]*[0-9]{4}[-.\/][0-9]{2}[-.\/][0-9]{2}\s+([가-힣]{2,4})/);
+    out.cutType  = grab(/(일자\s*컷팅|R\s*컷팅|해당없음)/).replace(/\s+/g,'');
+    out.cutLen   = grab(/완제품\s*길이[^0-9]{0,8}([0-9]{2,4})/);
+    // 착인 위치/색상: 라벨 인접 우선, 실패 시 표 전체에서 토큰 탐색
+    out.imprintPos   = grab(/위치[^가-힣A-Z]{0,6}(밀면|밑면|후면하단|후면\s*하단|압인\(앞,뒤\)|압인|측면|상단|하단|후면|전면)/)
+                    || grab(/(밀면|밑면|후면\s*하단|압인\(앞,뒤\))/);
+    out.imprintColor = grab(/색상[^가-힣A-Z]{0,6}(검정색?|흑색|백색|흰색|N\/A)/)
+                    || grab(/(검정색|흑색|N\/A)/);
     out.palletHeight = grab(/적재\s*높이[^0-9]{0,4}([0-9]{2,3}\s?cm\s?이하)/i) || grab(/([0-9]{2,3}cm이하)/);
     out.inboxQty  = grab(/인박스[\s\S]{0,200}?([0-9]{1,4})\s?EA/);
     out.outboxQty = grab(/아웃박스[\s\S]{0,200}?([0-9]{1,4})\s?EA/);
@@ -1828,7 +1858,7 @@
     let det = mt ? {type:mt, reason:'자재번호 '+String(p.matno).slice(0,2)+'… '+(/^10/.test(p.matno)?'포장':'충전')} : detectType(p._raw||'', p);
     if(det){ setType(det.type, {silent:true}); flashDetect('자동 판별: '+det.reason, det.type); }
     let hits=[], miss=[];
-    ['matno','abbr','nameKr','nameEn','volume','fillVol','customer','custcode','setType','lot','approved',
+    ['matno','abbr','nameKr','nameEn','volume','fillVol','customer','custcode','setType','lot','approved','owner',
      'cutType','cutLen','imprintPos','imprintColor','palletHeight','inboxQty','outboxQty','taping'].forEach(k=>{
       const v=p[k];
       if(v){ setField(k, v); hits.push(k); } else miss.push(k);
@@ -1851,6 +1881,11 @@
   initFields();                 // wire static header/label/pallet fields
   wireIntake('dzQC','listQC', appliedQC);
   wireIntake('dzVD','listVD', appliedVD);
+  const siClearBtn=document.getElementById('siClearBtn');
+  if(siClearBtn) siClearBtn.addEventListener('click', ()=>{
+    clearItemFields();
+    setStatus('<span class="done">기준정보를 비웠습니다.</span> 사양서를 보며 점선 밑줄 값을 직접 입력하거나, 사양서 PDF(텍스트형)를 첨부하세요.');
+  });
   setType('carton', {silent:true});
   flashDetect('기본값', 'carton');
   renderRefLinks();
