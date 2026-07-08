@@ -368,6 +368,15 @@
   .ref-snip{font-size:11.5px;line-height:1.5;border-bottom:1px dotted var(--line);padding-bottom:4px;}
   .ref-snip a{color:var(--stamp-blue);text-decoration:none;}
   .ref-snip .tg{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink-soft);margin-right:5px;}
+  /* live layout */
+  .ref-live{padding:14px;}
+  .ref-live-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+  .ref-adv{border-top:1px solid var(--line);}
+  .ref-adv>summary{cursor:pointer;padding:11px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);list-style:none;}
+  .ref-adv>summary::-webkit-details-marker{display:none;}
+  .ref-adv>summary::before{content:'▸ ';color:var(--stamp-blue);}
+  .ref-adv[open]>summary::before{content:'▾ ';}
+  .ref-adv .ref-body{border-top:none;}
   .comp-card{background:#fff;border:1px solid var(--ink);}
   .comp-head{background:var(--matcha-d);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
   .comp-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
@@ -527,34 +536,36 @@
   <!-- 01.5 DESIGN REFERENCE -->
   <section>
     <div class="sec-head">
-      <span class="sec-num">01·5</span><h2>디자인 레퍼런스 검색 · 종합</h2>
-      <span class="sec-note">제품명 기준 1차 웹검색 → 찾은 이미지를 02B에 넣으면 3D에 반영</span>
+      <span class="sec-num">01·5</span><h2>디자인 레퍼런스 (실시간 조회)</h2>
+      <span class="sec-note">제품명(국문)으로 조회 당시의 웹 이미지·후기를 실시간 표시</span>
     </div>
     <div class="ref-card">
-      <div class="ref-head"><span>DESIGN REFERENCE · 제품명 기반</span><span id="refTarget">—</span></div>
-      <div class="ref-body">
-        <div class="ref-links" id="refLinks"></div>
-        <div class="ref-note-wrap">
-          <div class="ref-note-head">디자인 종합 노트 <span class="ref-sub">(검색 결과에서 색상·레이아웃·형태를 정리 · 클릭 편집)</span></div>
-          <div class="ref-note fv" data-f="designNote" data-ph="예: 화이트 카톤 + 다크그린 타이포 + 말차그린 원형 모티프, 슬로건 'Curing skin, Caring beauty'">화이트 바디 + 다크그린 로고 타이포 + 말차그린 원형 모티프. 브랜드 슬로건 "Curing skin, Caring beauty". (동일 라인 제주말차 클레이 · 공개 판매채널 기준)</div>
-          <div class="ref-actions">
-            <span class="ref-grade">종합 출처등급 <span class="grade g-b">B</span> 공개채널 확인</span>
-            <button type="button" class="ref-apply-btn" id="refApplyBtn">종합 색상 → 3D 전면 반영</button>
-          </div>
+      <div class="ref-head"><span>DESIGN REFERENCE · 실시간</span><span id="refTarget">—</span></div>
+      <div class="ref-live">
+        <div class="ref-live-bar">
+          <input type="url" id="refProxyUrl" class="ref-proxy-in" placeholder="프록시 URL (최초 1회) 예: https://your-proj.vercel.app" spellcheck="false">
+          <button type="button" class="ref-apply-btn" id="refSearchBtn">&#128260; 새로고침</button>
         </div>
-      </div>
-      <div class="ref-auto">
-        <div class="ref-auto-head">
-          <span>자동 검색 (네이버 + 구글 · 프록시 필요)</span>
-          <input type="url" id="refProxyUrl" class="ref-proxy-in" placeholder="프록시 URL 예: https://your-proj.vercel.app" spellcheck="false">
-          <button type="button" class="ref-apply-btn" id="refSearchBtn">&#128269; 자동 검색</button>
-        </div>
-        <div class="ref-auto-status" id="refAutoStatus">프록시 URL을 넣으면 제품명(한글)으로 네이버·구글을 한 번에 검색해 썸네일·후기·판매정보를 종합합니다. (배포는 <b>proxy/</b> 폴더 참고)</div>
+        <div class="ref-auto-status" id="refAutoStatus">프록시 URL을 한 번 넣으면, 이후 제품명이 바뀔 때마다 <b>자동으로 실시간 조회</b>됩니다. (프록시 배포는 <b>proxy/</b> 폴더 참고)</div>
         <div class="ref-thumbs" id="refThumbs"></div>
         <div class="ref-snips" id="refSnips"></div>
       </div>
+      <details class="ref-adv">
+        <summary>고급 · 수동 검색 링크 / 디자인 종합 노트 / 3D 색상 반영</summary>
+        <div class="ref-body">
+          <div class="ref-links" id="refLinks"></div>
+          <div class="ref-note-wrap">
+            <div class="ref-note-head">디자인 종합 노트 <span class="ref-sub">(색상·레이아웃·형태 정리 · 클릭 편집)</span></div>
+            <div class="ref-note fv" data-f="designNote" data-ph="예: 화이트 카톤 + 다크그린 타이포 + 말차그린 원형 모티프">화이트 바디 + 다크그린 로고 타이포 + 말차그린 원형 모티프. (동일 라인 제주말차 클레이 · 공개 판매채널 기준)</div>
+            <div class="ref-actions">
+              <span class="ref-grade">종합 출처등급 <span class="grade g-b">B</span> 공개채널 확인</span>
+              <button type="button" class="ref-apply-btn" id="refApplyBtn">종합 색상 → 3D 전면 반영</button>
+            </div>
+          </div>
+        </div>
+      </details>
       <div class="ref-foot">
-        ※ API 키는 <b>프록시(Vercel) 환경변수</b>에만 저장되며 페이지엔 노출되지 않습니다. 프록시 없이도 위 검색 링크·수동 입력은 동작합니다.
+        ※ API 키는 <b>프록시(Vercel) 환경변수</b>에만 저장되며 페이지엔 노출되지 않습니다. 썸네일의 <b>“→ 02B 검수사진”</b>을 누르면 3D 모델에 실사로 반영됩니다.
       </div>
     </div>
   </section>
@@ -1155,8 +1166,8 @@
     }
     // 착인 사양 입력 → 형상 카드 활성화 상태 갱신
     if(f==='imprintPos'||f==='imprintColor'||f==='imprint1'||f==='imprint2') refreshShapeEnable();
-    // 제품명 변경 → 디자인 레퍼런스 검색어 갱신
-    if(f==='nameKr'||f==='nameEn'||f==='abbr'||f==='abbr2') renderRefLinks();
+    // 제품명 변경 → 검색어 갱신 + 실시간 자동 조회 예약
+    if(f==='nameKr'||f==='nameEn'||f==='abbr'||f==='abbr2'){ renderRefLinks(); if(typeof scheduleAutoSearch==='function') scheduleAutoSearch(); }
   }
   function get(f){ return state[f] || ''; }
 
@@ -1789,9 +1800,15 @@
   const refSnips=document.getElementById('refSnips');
   if(proxyIn){
     proxyIn.value = localStorage.getItem('refProxyUrl')||'';
-    proxyIn.addEventListener('change', ()=>{ localStorage.setItem('refProxyUrl', proxyIn.value.trim().replace(/\/+$/,'')); });
+    proxyIn.addEventListener('change', ()=>{ localStorage.setItem('refProxyUrl', proxyIn.value.trim().replace(/\/+$/,'')); scheduleAutoSearch(300); });
   }
   const proxyBase = ()=> (proxyIn && proxyIn.value.trim().replace(/\/+$/,'')) || '';
+  let autoTimer=null, lastAutoQ='';
+  function scheduleAutoSearch(delay){
+    if(!proxyBase() || !refQuery()) return;
+    clearTimeout(autoTimer);
+    autoTimer=setTimeout(()=>{ if(refQuery() && refQuery()!==lastAutoQ){ lastAutoQ=refQuery(); autoSearch(); } }, delay||800);
+  }
 
   async function fetchToDataUrl(base, url){
     const r=await fetch(base+'/api/img?url='+encodeURIComponent(url));
@@ -1984,6 +2001,7 @@
   setType('carton', {silent:true});
   flashDetect('기본값', 'carton');
   renderRefLinks();
+  scheduleAutoSearch(500);   // 저장된 프록시 + 제품명 있으면 로드시 자동 조회
 })();
 </script>
 
