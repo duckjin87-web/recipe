@@ -312,6 +312,23 @@
   .structure-chip .icon{font-size:22px;}
   .structure-chip .txt{font-size:12.5px;line-height:1.6;}
   .structure-chip .txt b{color:var(--stamp-blue);}
+  /* shape (형상) card */
+  .shape-card{background:#fff;border:1px solid var(--ink);position:relative;}
+  .shape-head{background:#2f3b46;color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
+  .shape-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+  .shape-presets{display:flex;gap:6px;flex-wrap:wrap;}
+  .shape-preset{font-family:'IBM Plex Mono',monospace;font-size:11px;border:1.5px solid var(--ink);background:#fff;padding:5px 9px;cursor:pointer;border-radius:2px;}
+  .shape-preset:hover{background:var(--ink);color:#fff;}
+  .shape-preset.on{background:var(--stamp-blue);border-color:var(--stamp-blue);color:#fff;}
+  .dim-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .dim-fld{display:flex;align-items:center;gap:5px;}
+  .dim-fld label{color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:11px;}
+  .dim-fld input{width:56px;padding:5px 6px;border:1.5px solid var(--line);border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  .dim-fld .unit{color:var(--ink-soft);font-size:10px;font-family:'IBM Plex Mono',monospace;}
+  .shape-note-mini{font-size:10.5px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;line-height:1.6;}
+  .shape-lock-note{display:none;font-size:11px;color:var(--stamp-red);font-family:'IBM Plex Mono',monospace;}
+  .shape-card.disabled .shape-lock-note{display:block;}
+  .shape-card.disabled .shape-presets,.shape-card.disabled .dim-row{opacity:.35;pointer-events:none;}
   .comp-card{background:#fff;border:1px solid var(--ink);}
   .comp-head{background:var(--matcha-d);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
   .comp-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
@@ -674,6 +691,17 @@
     palletLabel:'N (미부착)', remainderRule:'—', note:'—'
   };
   Object.keys(DEFAULTS).forEach(k => { if(!(k in state)) state[k] = DEFAULTS[k]; });
+
+  /* ---------- shape (형상) : dims per type, source-priority ---------- */
+  // SHAPE[type] = box {W,D,H} | tube {dia,len} | container {dia,h}. undefined = 근사
+  const SHAPE = {};
+  const BOX_PRESETS = {
+    tall: {label:'세로장방', W:38, D:32, H:132},
+    cube: {label:'정입방',   W:70, D:66, H:80},
+    wide: {label:'가로평',   W:120, D:78, H:44},
+    slim: {label:'슬림장방', W:28, D:28, H:150}
+  };
+  const clampNum = (v,a,b)=>Math.max(a,Math.min(b,v));
 
   /* =====================================================================
      TYPE CONFIG
@@ -1042,6 +1070,16 @@
       document.querySelectorAll('.fv[data-f="'+pf+'"]').forEach(elm => elm.textContent = val);
     });
     syncBinds(); refreshGuides();
+    // 자재번호 입력 → 접두(10/20)로 유형 자동세팅
+    if(f==='matno'){
+      const nt = detectFromMatno(val);
+      if(nt && nt!==currentType){
+        setType(nt, {silent:true});
+        flashDetect('자재번호 '+val.slice(0,2)+'…: '+(/^10/.test(val)?'포장(단상자/셋트)':'충전(용기/튜브)'), nt);
+      }
+    }
+    // 착인 사양 입력 → 형상 카드 활성화 상태 갱신
+    if(f==='imprintPos'||f==='imprintColor'||f==='imprint1'||f==='imprint2') refreshShapeEnable();
   }
   function get(f){ return state[f] || ''; }
 
@@ -1152,8 +1190,140 @@
     });
   }
 
+  /* ---------- shape source: dims → 3D + capture guide + accuracy badge ---------- */
+  const stageGrade = document.getElementById('stageGrade');
+  const IMPRINT_LABEL = {carton:'단상자 착인', set:'셋트 착인', tube:'용기 착인', container:'용기 착인'};
+
+  function hasImprintSpec(){
+    return !EMPTYISH(get('imprintPos')) || !EMPTYISH((get('imprint1')||'').replace(/^.*?—\s*/,''));
+  }
+
+  function applyBoxDims(model, W, D, H){
+    if(!(W>0 && D>0 && H>0)) return;
+    const scale = 200 / Math.max(W,D,H);
+    const w=W*scale, d=D*scale, h=H*scale;
+    const set = (face, width, height, tf) => {
+      const e = model.querySelector('[data-face="'+face+'"]'); if(!e) return;
+      e.style.width=width+'px'; e.style.height=height+'px';
+      e.style.marginLeft=(-width/2)+'px'; e.style.marginTop=(-height/2)+'px';
+      e.style.transform=tf;
+    };
+    set('front', w, h, 'translateZ('+(d/2)+'px)');
+    set('back',  w, h, 'rotateY(180deg) translateZ('+(d/2)+'px)');
+    set('right', d, h, 'rotateY(90deg) translateZ('+(w/2)+'px)');
+    set('left',  d, h, 'rotateY(-90deg) translateZ('+(w/2)+'px)');
+    set('top',   w, d, 'rotateX(90deg) translateZ('+(h/2)+'px)');
+    set('bottom',w, d, 'rotateX(-90deg) translateZ('+(h/2)+'px)');
+  }
+
+  function applyShape(){
+    const t=currentType, s=SHAPE[t];
+    if(!s) return;                                   // 근사 — leave built defaults
+    if(t==='carton' || t==='set') applyBoxDims(MODELS[t], s.W, s.D, s.H);
+    // tube/container 3D 치수 반영은 다음 단계 — 현재는 캡처 가이드/배지에만 반영
+  }
+
+  // capture-guide / face aspect ratio, dims-aware
+  function faceRatio(key){
+    const s=SHAPE[currentType];
+    if((currentType==='carton'||currentType==='set') && s){
+      if(key==='front'||key==='back') return s.W/s.H;
+      if(key==='left'||key==='right') return s.D/s.H;
+      if(key==='top'||key==='bottom') return s.W/s.D;
+    }
+    if(currentType==='tube' && s){
+      if(key==='front') return (s.dia||40)/(s.len||150);
+      if(key==='seal')  return (s.dia||40)/44;
+    }
+    if(currentType==='container' && s){
+      if(key==='front') return (s.dia||140)/(s.h||46);
+      return 1;
+    }
+    const f=currentFaces().find(x=>x.key===key); return f?f.ratio:1;
+  }
+
+  function updateShapeBadge(){
+    if(!stageGrade) return;
+    const m=activeModel();
+    const hasPhoto = m && !!m.querySelector('.has-photo');
+    const hasDims  = !!SHAPE[currentType];
+    let cls,txt,note;
+    if(hasPhoto){ cls='g-a'; txt='실물 반영됨'; note='실물 사진 기준'; }
+    else if(hasDims){ cls='g-b'; txt='치수 반영'; note='입력 치수 기준'; }
+    else { cls='g-c'; txt='근사 (사진 없음)'; note='사양서 기반 근사'; }
+    stageGrade.innerHTML='형상 소스 <span class="grade '+cls+'" style="margin-left:4px;" title="'+note+'">'+txt+'</span>';
+  }
+
+  // 자재번호 접두: 10=포장(단상자/셋트), 20=충전(용기/튜브)
+  function detectFromMatno(matno){
+    const m=(matno||'').trim();
+    if(/^10/.test(m)) return /(세트|셋트)/.test(get('setType')) ? 'set' : 'carton';
+    if(/^20/.test(m)) return /(일자컷팅|R컷팅)/.test(get('cutType')) ? 'tube' : 'container';
+    return null;
+  }
+
+  function renderShapeCard(cfg){
+    const t=currentType;
+    let ctrl='';
+    if(t==='carton' || t==='set'){
+      ctrl += '<div class="shape-presets">'+Object.entries(BOX_PRESETS).map(([k,v])=>
+        '<button type="button" class="shape-preset" data-preset="'+k+'">'+v.label+'</button>').join('')+'</div>';
+      ctrl += '<div class="dim-row">'+dimFld('W','장(가로)')+dimFld('D','폭(세로)')+dimFld('H','고(높이)')+'<span class="unit">mm</span></div>';
+    } else if(t==='tube'){
+      ctrl += '<div class="shape-note-mini">완제품길이는 사양서 값 자동 반영 · 3D 치수 반영은 다음 단계(현재 촬영 가이드·배지에 반영)</div>';
+      ctrl += '<div class="dim-row">'+dimFld('dia','직경')+dimFld('len','길이')+'<span class="unit">mm</span></div>';
+    } else {
+      ctrl += '<div class="shape-note-mini">3D 치수 반영은 다음 단계(현재 촬영 가이드·배지에 반영)</div>';
+      ctrl += '<div class="dim-row">'+dimFld('dia','직경')+dimFld('h','높이')+'<span class="unit">mm</span></div>';
+    }
+    return '<div class="shape-card" id="shapeCard"><div class="shape-head"><span>형상 (SHAPE) · '+cfg.label+'</span><span>실측 우선</span></div>'+
+      '<div class="shape-body"><div class="shape-lock-note">※ '+(IMPRINT_LABEL[t]||'착인')+' 사양이 입력되면 활성화됩니다.</div>'+
+      ctrl+'</div></div>';
+  }
+  function dimFld(key, label){
+    return '<span class="dim-fld"><label>'+label+'</label><input type="number" min="1" step="1" data-dim="'+key+'"></span>';
+  }
+
+  function wireShapeCard(){
+    const card=document.getElementById('shapeCard'); if(!card) return;
+    const t=currentType, s=SHAPE[t]||{};
+    // seed inputs
+    card.querySelectorAll('input[data-dim]').forEach(inp=>{
+      const k=inp.dataset.dim;
+      if(s[k]!=null) inp.value=s[k];
+      else if(t==='tube' && k==='len'){ const n=parseInt(get('cutLen'),10); if(n>0) inp.value=n; }
+      inp.addEventListener('input', readDims);
+      inp.addEventListener('change', readDims);
+    });
+    card.querySelectorAll('.shape-preset').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const p=BOX_PRESETS[btn.dataset.preset];
+        SHAPE[t]={W:p.W, D:p.D, H:p.H};
+        card.querySelectorAll('.shape-preset').forEach(b=>b.classList.toggle('on', b===btn));
+        card.querySelector('input[data-dim="W"]').value=p.W;
+        card.querySelector('input[data-dim="D"]').value=p.D;
+        card.querySelector('input[data-dim="H"]').value=p.H;
+        applyShape(); updateShapeBadge();
+      });
+    });
+    function readDims(){
+      const d={};
+      card.querySelectorAll('input[data-dim]').forEach(inp=>{ const v=parseFloat(inp.value); if(v>0) d[inp.dataset.dim]=v; });
+      const keys = (t==='carton'||t==='set') ? ['W','D','H'] : (t==='tube'?['dia','len']:['dia','h']);
+      if(keys.every(k=>d[k]>0)){ SHAPE[t]=d; } else { delete SHAPE[t]; }
+      card.querySelectorAll('.shape-preset').forEach(b=>b.classList.remove('on'));
+      applyShape(); updateShapeBadge();
+    }
+    refreshShapeEnable();
+  }
+  function refreshShapeEnable(){
+    const card=document.getElementById('shapeCard'); if(!card) return;
+    card.classList.toggle('disabled', !hasImprintSpec());
+  }
+
   function renderImprintPanel(cfg){
-    let html = '<div class="structure-chip"><div class="icon">'+cfg.icon+'</div><div class="txt">'+cfg.structure+'</div></div>';
+    let html = renderShapeCard(cfg);
+    html += '<div class="structure-chip"><div class="icon">'+cfg.icon+'</div><div class="txt">'+cfg.structure+'</div></div>';
     html += '<div class="ip-card"><div class="ip-head"><span>착인 사양 (사양서 기준)</span><span>IMPRINT SPEC</span></div><div class="ip-body">';
     cfg.imprintRows.forEach(r=>{
       html += '<div class="ip-row"><span class="k">'+esc(r.k)+'</span><span class="v'+(r.mono?' mono':'')+'">'+
@@ -1167,6 +1337,7 @@
     html += '<div class="ip-note">'+cfg.checkpoints+'</div>';
     imprintPanel.innerHTML = html;
     if(cfg.showComponents) renderComponents();
+    wireShapeCard();
   }
 
   function renderComponents(){
@@ -1260,10 +1431,12 @@
       face.appendChild(ov);
     }
     appliedMap[faceKey] = itemId;
+    updateShapeBadge();
   }
   function clearFace(faceKey, appliedMap){
     const face = faceEl(faceKey); if(face){ face.classList.remove('has-photo'); face.querySelectorAll('.photo-fill,.imprint-overlay').forEach(e=>e.remove()); }
     delete appliedMap[faceKey];
+    updateShapeBadge();
   }
 
   function fmtNow(){ const d=new Date(),z=n=>String(n).padStart(2,'0');
@@ -1336,7 +1509,7 @@
     const cropOk=document.getElementById('cropConfirm'), capHint=document.getElementById('capHint'), capTitle=document.getElementById('capTitle');
     let mode=null, stream=null, doneCb=null, imgState={scale:1,x:0,y:0,natW:0,natH:0};
 
-    function ratioOf(key){ const f=currentFaces().find(x=>x.key===key); return f?f.ratio:1; }
+    function ratioOf(key){ return faceRatio(key); }
     function refreshFaceSel(preFace){
       faceSel.innerHTML = currentFaces().map(f=>'<option value="'+f.key+'">'+f.label+'</option>').join('');
       if(preFace) faceSel.value=preFace;
@@ -1450,6 +1623,8 @@
     initFields();
     syncBinds();
     refreshGuides();
+    applyShape();
+    updateShapeBadge();
     // reset rotation to front-ish
     rx=-14; ry=28; stopSpin(); apply();
     if(!opts||!opts.silent) flashDetect('수동 선택', t);
@@ -1549,8 +1724,12 @@
   }
 
   function applyParsed(p, fname){
-    // auto-detect type first
-    const det = detectType(p._raw||'', p);
+    // seed 세트/컷팅 먼저 — 자재번호 하위유형 판별에 사용
+    if(p.setType) state.setType = p.setType;
+    if(p.cutType) state.cutType = p.cutType;
+    // auto-detect type — 자재번호 접두(10/20) 우선, 없으면 착인블록/컷팅
+    const mt = detectFromMatno(p.matno||'');
+    let det = mt ? {type:mt, reason:'자재번호 '+String(p.matno).slice(0,2)+'… '+(/^10/.test(p.matno)?'포장':'충전')} : detectType(p._raw||'', p);
     if(det){ setType(det.type, {silent:true}); flashDetect('자동 판별: '+det.reason, det.type); }
     let hits=[], miss=[];
     ['matno','abbr','nameKr','nameEn','volume','fillVol','customer','custcode','setType','lot','approved',
