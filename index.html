@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>포장사양서 실물대조 · EGC-JMFCC</title>
+<title>포장사양서 실물대조 · 범용 뷰어</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -51,20 +51,40 @@
   .sec-num{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px;}
   .sec-head h2{font-size:16px;margin:0;font-weight:700;}
   .sec-note{font-size:12px;color:var(--ink-soft);margin-left:auto;}
+  .hidden{display:none !important;}
+
+  /* ===== type selector ===== */
+  .typebar{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;
+  }
+  @media(max-width:680px){.typebar{grid-template-columns:repeat(2,1fr);}}
+  .typecard{
+    background:#fff;border:1.5px solid var(--line);border-radius:3px;
+    padding:14px 12px;cursor:pointer;text-align:center;
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .typecard:hover{border-color:var(--ink-soft);}
+  .typecard.on{border-color:var(--stamp-blue);box-shadow:inset 0 0 0 1px var(--stamp-blue);background:#f5f8ff;}
+  .typecard .ic{font-size:26px;line-height:1;}
+  .typecard .nm{font-size:13.5px;font-weight:700;margin-top:7px;}
+  .typecard .ds{font-size:10.5px;color:var(--ink-soft);margin-top:3px;line-height:1.5;font-family:'IBM Plex Mono',monospace;}
+  .autodetect{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+    background:#fff;border:1px dashed var(--line);padding:8px 12px;line-height:1.7;
+  }
+  .autodetect b{color:var(--stamp-blue);}
 
   /* spec grid */
   .spec-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--ink);background:#fff;}
   .spec-cell{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 12px;}
-  .spec-cell:nth-child(4n){border-right:none;}
+  .spec-cell.wide{grid-column:1 / -1;}
   .spec-cell .k{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-bottom:4px;}
   .spec-cell .v{font-size:14px;font-weight:700;}
   .spec-cell.hi{background:var(--hi-soft);}
-  @media(max-width:760px){.spec-grid{grid-template-columns:repeat(2,1fr);}.spec-cell:nth-child(4n){border-right:1px solid var(--line);}.spec-cell:nth-child(2n){border-right:none;}}
+  @media(max-width:760px){.spec-grid{grid-template-columns:repeat(2,1fr);}}
 
   /* ===== spec sheet intake ===== */
-  .specintake{
-    background:#fff;border:1px solid var(--ink);margin-bottom:18px;
-  }
+  .specintake{background:#fff;border:1px solid var(--ink);margin-bottom:18px;}
   .si-head{
     display:flex;justify-content:space-between;align-items:center;
     background:var(--ink);color:#fff;padding:8px 14px;
@@ -111,9 +131,7 @@
   }
 
   /* ===== 3D viewer ===== */
-  .viewer-wrap{
-    display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:stretch;
-  }
+  .viewer-wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:stretch;}
   @media(max-width:860px){.viewer-wrap{grid-template-columns:1fr;}}
   .stage-card{background:#fff;border:1px solid var(--ink);display:flex;flex-direction:column;}
   .stage-head{
@@ -122,17 +140,13 @@
     font-family:'IBM Plex Mono',monospace;font-size:11.5px;
   }
   .stage{
-    flex:1;min-height:440px;
-    perspective:1100px;
+    flex:1;min-height:460px;
+    perspective:1150px;
     display:flex;align-items:center;justify-content:center;
     background:
       radial-gradient(ellipse 55% 10% at 50% 88%, rgba(0,0,0,.13), transparent 70%),
       linear-gradient(180deg,#fdfdfb 0%, #efeee6 100%);
-    cursor:grab;
-    touch-action:none;
-    user-select:none;
-    position:relative;
-    overflow:hidden;
+    cursor:grab;touch-action:none;user-select:none;position:relative;overflow:hidden;
   }
   .stage:active{cursor:grabbing;}
   .stage-hint{
@@ -140,145 +154,166 @@
     font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);
     pointer-events:none;
   }
-
-  /* carton: 60 x 170 x 42 (w h d) px scaled ~ real 단상자 proportion */
-  .carton{
-    position:relative;
-    width:96px;height:210px;
+  .model-hold{transform-style:preserve-3d;}
+  .model3d{
+    position:absolute;left:50%;top:50%;
     transform-style:preserve-3d;
     transition:transform .08s linear;
+    display:none;
   }
-  .carton.snap{transition:transform .55s cubic-bezier(.2,.8,.25,1);}
-  .face{
+  .model3d.active{display:block;}
+  .model3d.snap{transition:transform .55s cubic-bezier(.2,.8,.25,1);}
+
+  .face,.photoface{
     position:absolute;
     background:var(--box-cream);
     border:1px solid rgba(0,0,0,.14);
     backface-visibility:hidden;
     display:flex;flex-direction:column;align-items:center;
   }
-  /* w=96 d=56 h=210 */
-  .f-front, .f-back{width:96px;height:210px;left:0;top:0;}
-  .f-left, .f-right{width:56px;height:210px;left:20px;top:0;}
-  .f-top, .f-bottom{width:96px;height:56px;left:0;top:77px;}
 
-  .f-front{transform:translateZ(28px);}
-  .f-back{transform:rotateY(180deg) translateZ(28px);}
-  .f-right{transform:rotateY(90deg) translateZ(48px);}
-  .f-left{transform:rotateY(-90deg) translateZ(48px);}
-  .f-top{transform:rotateX(90deg) translateZ(105px);}
-  .f-bottom{transform:rotateX(-90deg) translateZ(105px);}
+  /* ---- CARTON (단상자) : w96 d56 h210 ---- */
+  .m-carton .f-front, .m-carton .f-back{width:96px;height:210px;margin:-105px 0 0 -48px;}
+  .m-carton .f-left, .m-carton .f-right{width:56px;height:210px;margin:-105px 0 0 -28px;}
+  .m-carton .f-top, .m-carton .f-bottom{width:96px;height:56px;margin:-28px 0 0 -48px;}
+  .m-carton .f-front{transform:translateZ(28px);}
+  .m-carton .f-back{transform:rotateY(180deg) translateZ(28px);}
+  .m-carton .f-right{transform:rotateY(90deg) translateZ(48px);}
+  .m-carton .f-left{transform:rotateY(-90deg) translateZ(48px);}
+  .m-carton .f-top{transform:rotateX(90deg) translateZ(105px);}
+  .m-carton .f-bottom{transform:rotateX(-90deg) translateZ(105px);}
 
-  /* 전면: 동일 라인(제주말차 클레이팩) 단상자 디자인 언어 차용
-     — 화이트 카톤 + 다크그린 로고 타이포 + 말차 그린 모티프 */
-  .f-front{
-    background:linear-gradient(180deg,#fdfcf9 0%, #f6f4ec 100%);
-    padding:13px 8px 10px;gap:5px;text-align:center;
-  }
-  .fb-brand{
-    font-size:12px;font-weight:900;letter-spacing:.05em;color:#1f3a2d;
-  }
+  /* ---- SET CASE (셋트) : w156 d96 h130 ---- */
+  .m-set .f-front, .m-set .f-back{width:156px;height:130px;margin:-65px 0 0 -78px;}
+  .m-set .f-left, .m-set .f-right{width:96px;height:130px;margin:-65px 0 0 -48px;}
+  .m-set .f-top, .m-set .f-bottom{width:156px;height:96px;margin:-48px 0 0 -78px;}
+  .m-set .f-front{transform:translateZ(48px);}
+  .m-set .f-back{transform:rotateY(180deg) translateZ(48px);}
+  .m-set .f-right{transform:rotateY(90deg) translateZ(78px);}
+  .m-set .f-left{transform:rotateY(-90deg) translateZ(78px);}
+  .m-set .f-top{transform:rotateX(90deg) translateZ(65px);}
+  .m-set .f-bottom{transform:rotateX(-90deg) translateZ(65px);}
+
+  /* front design (carton & set share the language) */
+  .f-front{background:linear-gradient(180deg,#fdfcf9 0%, #f6f4ec 100%);padding:13px 8px 10px;gap:5px;text-align:center;}
+  .fb-brand{font-size:12px;font-weight:900;letter-spacing:.05em;color:#1f3a2d;}
   .fb-tag{font-family:'IBM Plex Mono',monospace;font-size:5.5px;letter-spacing:.2em;color:#6b7a68;text-transform:uppercase;}
   .fb-rule{width:22px;height:1.5px;background:#1f3a2d;opacity:.6;}
-  .fb-name{
-    font-size:9px;font-weight:700;line-height:1.45;color:#1f3a2d;letter-spacing:.03em;
-  }
+  .fb-name{font-size:9px;font-weight:700;line-height:1.45;color:#1f3a2d;letter-spacing:.03em;}
   .fb-name em{font-style:normal;color:#4f7a4a;}
   .fb-kr{font-size:7.5px;color:#5c6b58;line-height:1.5;}
   .fb-swatch{
-    width:50px;height:50px;border-radius:50%;
+    width:48px;height:48px;border-radius:50%;
     background:
       radial-gradient(circle at 62% 68%, rgba(255,255,255,.35) 0 18%, transparent 20%),
       radial-gradient(circle at 34% 30%, #b9cc90, #86a25e 55%, #5d7a45);
-    margin-top:5px;
-    box-shadow:inset 0 -5px 9px rgba(30,50,25,.25), inset 2px 3px 6px rgba(255,255,255,.4);
-    position:relative;
-  }
-  .fb-swatch::after{
-    content:'';position:absolute;left:50%;top:-7px;width:9px;height:14px;
-    background:#4f7a4a;border-radius:50% 50% 50% 0;transform:translateX(-50%) rotate(40deg);
+    margin-top:5px;box-shadow:inset 0 -5px 9px rgba(30,50,25,.25), inset 2px 3px 6px rgba(255,255,255,.4);
   }
   .fb-claim{font-size:6px;color:#8a9484;letter-spacing:.06em;}
   .fb-vol{margin-top:auto;font-family:'IBM Plex Mono',monospace;font-size:7.5px;color:#5c6b58;letter-spacing:.06em;}
-
   .f-back{background:#f4f2ea;padding:12px 8px;gap:5px;}
   .bk-line{width:80%;height:3px;background:rgba(60,66,48,.22);border-radius:2px;}
   .bk-line.s{width:64%;}
-  .bk-bar{
-    width:70%;height:26px;margin-top:8px;
-    background:repeating-linear-gradient(90deg,#20221c 0,#20221c 2px,transparent 2px,transparent 4px,#20221c 4px,#20221c 5px,transparent 5px,transparent 8px);
-  }
+  .bk-bar{width:70%;height:26px;margin-top:8px;
+    background:repeating-linear-gradient(90deg,#20221c 0,#20221c 2px,transparent 2px,transparent 4px,#20221c 4px,#20221c 5px,transparent 5px,transparent 8px);}
   .bk-cap{font-family:'IBM Plex Mono',monospace;font-size:6.5px;color:#4a5340;letter-spacing:.12em;}
-
   .f-left,.f-right{background:#f0eee4;justify-content:center;gap:6px;}
-  .side-txt{
-    writing-mode:vertical-rl;
-    font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.14em;color:#4a5340;
-  }
+  .side-txt{writing-mode:vertical-rl;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:.14em;color:#4a5340;}
   .f-top{background:#f6f4ec;align-items:center;justify-content:center;}
   .top-logo{font-size:9px;font-weight:900;color:#1f3a2d;letter-spacing:.05em;}
+  .f-bottom{background:#efede2;align-items:center;justify-content:center;gap:4px;outline:2px solid var(--stamp-red);outline-offset:-2px;}
 
-  /* 밀면 = bottom : 착인 */
-  .f-bottom{
-    background:#efede2;align-items:center;justify-content:center;gap:4px;
+  .imprint{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:#111;letter-spacing:.08em;line-height:1.6;text-align:center;text-shadow:0 0 .4px #111;}
+  .imprint-tag{position:absolute;top:3px;left:4px;font-family:'IBM Plex Mono',monospace;font-size:6.5px;color:var(--stamp-red);letter-spacing:.1em;}
+
+  /* set component tray badge on top face */
+  .set-tray{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;align-items:center;padding:6px;}
+  .set-slot{border:1px dashed #7a8a6e;border-radius:3px;background:#eef1e6;
+    font-family:'IBM Plex Mono',monospace;font-size:6px;color:#4a5340;padding:4px 5px;line-height:1.3;text-align:center;}
+
+  /* ---- TUBE (튜브) : cylinder ---- */
+  .cyl-seg{position:absolute;left:50%;top:50%;
+    background:linear-gradient(90deg,rgba(0,0,0,.16),rgba(255,255,255,.10) 45%,rgba(255,255,255,.20) 55%,rgba(0,0,0,.16));
+    border:none;}
+  .m-tube .cyl-seg{background-color:#eef0ea;}
+  .cyl-cap{position:absolute;left:50%;top:50%;border-radius:50%;}
+  .tube-cap{background:radial-gradient(circle at 40% 35%,#d8dcd2,#aeb4a6 70%,#8a9080);border:1px solid rgba(0,0,0,.2);}
+  .tube-body-band{
+    position:absolute;left:50%;top:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    background:transparent;border:none;color:#3a4a33;text-align:center;pointer-events:none;
+  }
+  .tube-body-band .tbn{font-size:8px;font-weight:800;letter-spacing:.04em;line-height:1.3;color:#2f4a2b;}
+  .tube-body-band .tbv{font-family:'IBM Plex Mono',monospace;font-size:7px;color:#5c6b58;}
+  .seal{
+    position:absolute;left:50%;top:50%;background:#e7e9e2;border:1px solid rgba(0,0,0,.22);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
     outline:2px solid var(--stamp-red);outline-offset:-2px;
   }
-  .imprint{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:9px;font-weight:600;color:#111;
-    letter-spacing:.08em;line-height:1.6;text-align:center;
-    text-shadow:0 0 .4px #111;
+  .seal.rcut{border-radius:0 0 40px 40px;}
+  .seal-tag{position:absolute;top:2px;left:4px;font-family:'IBM Plex Mono',monospace;font-size:6px;color:var(--stamp-red);letter-spacing:.08em;}
+  .seal-crimp{position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(0,0,0,.10) 0 2px,transparent 2px 5px);pointer-events:none;}
+  .seal.rcut .seal-crimp{border-radius:0 0 40px 40px;}
+
+  /* ---- CONTAINER / CUSHION (용기) : puck ---- */
+  .puck-lid{background:radial-gradient(circle at 42% 38%,#fdfdfb,#eceae1 60%,#d7d5c9);}
+  .puck-lid .lid-brand{margin:auto;font-size:9px;font-weight:900;color:#25402f;letter-spacing:.04em;text-align:center;line-height:1.3;}
+  .puck-base{background:radial-gradient(circle at 50% 50%,#f0efe8,#e2e0d6);align-items:center;justify-content:center;}
+  .base-ring{position:absolute;inset:9px;border:1.5px solid #cdcabb;border-radius:50%;pointer-events:none;}
+  .base-recycle{position:absolute;left:14px;top:16px;font-size:11px;color:#8a9080;}
+  .base-imprint{
+    position:absolute;right:14px;bottom:18px;
+    font-family:'IBM Plex Mono',monospace;font-size:7px;font-weight:600;color:#111;line-height:1.5;text-align:right;
+    border:1px solid var(--stamp-red);padding:2px 5px;background:rgba(255,255,255,.6);
   }
-  .imprint-tag{
-    position:absolute;top:3px;left:4px;
-    font-family:'IBM Plex Mono',monospace;font-size:6.5px;color:var(--stamp-red);
-    letter-spacing:.1em;
+  .base-imprint .btag{display:block;color:var(--stamp-red);font-size:6px;letter-spacing:.06em;}
+
+  /* photo-textured face */
+  .photoface.has-photo, .face.has-photo{padding:0 !important;overflow:hidden;}
+  .photoface.has-photo > *:not(.imprint-overlay), .face.has-photo > *:not(.imprint-overlay){display:none;}
+  .photo-fill{display:block;width:100%;height:100%;background-size:cover;background-position:center;}
+  .imprint-overlay{display:flex;position:absolute;inset:0;align-items:flex-end;justify-content:center;padding:4px;pointer-events:none;}
+  .imprint-overlay span{
+    font-family:'IBM Plex Mono',monospace;font-size:7px;font-weight:600;
+    background:rgba(255,255,255,.82);color:#111;padding:2px 6px;border:1px solid var(--stamp-red);letter-spacing:.05em;text-align:center;
   }
 
   /* control rail */
-  .ctrl-rail{
-    display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);flex-wrap:wrap;
-  }
+  .ctrl-rail{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);flex-wrap:wrap;}
   .ctrl-btn{
     font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;
     border:1.5px solid var(--ink);background:#fff;color:var(--ink);
-    padding:7px 13px;cursor:pointer;border-radius:2px;
-    transition:background .15s,color .15s;
+    padding:7px 13px;cursor:pointer;border-radius:2px;transition:background .15s,color .15s;
   }
   .ctrl-btn:hover{background:var(--ink);color:#fff;}
   .ctrl-btn.hot{border-color:var(--stamp-red);color:var(--stamp-red);}
   .ctrl-btn.hot:hover{background:var(--stamp-red);color:#fff;}
   .ctrl-btn.spin-on{background:var(--ink);color:#fff;}
 
-  /* right panel: 착인 spec */
+  /* right panel */
   .imprint-panel{display:flex;flex-direction:column;gap:12px;}
   .ip-card{background:#fff;border:1px solid var(--ink);}
-  .ip-head{
-    background:var(--stamp-red);color:#fff;padding:8px 14px;
-    font-family:'IBM Plex Mono',monospace;font-size:11.5px;
-    display:flex;justify-content:space-between;
-  }
+  .ip-head{background:var(--stamp-red);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
   .ip-body{padding:14px;}
-  .ip-row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px dotted var(--line);}
-  .ip-row .k{color:var(--ink-soft);}
-  .ip-row .v{font-weight:700;}
+  .ip-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:8px 0;border-bottom:1px dotted var(--line);}
+  .ip-row .k{color:var(--ink-soft);white-space:nowrap;}
+  .ip-row .v{font-weight:700;text-align:right;}
   .ip-row .v.mono{font-family:'IBM Plex Mono',monospace;}
   .ip-note{font-size:11.5px;color:var(--ink-soft);line-height:1.7;padding:12px 14px;background:#fff;border:1px dashed var(--line);}
-  .structure-chip{
-    display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--ink);padding:12px 14px;
-  }
+  .structure-chip{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--ink);padding:12px 14px;}
   .structure-chip .icon{font-size:22px;}
   .structure-chip .txt{font-size:12.5px;line-height:1.6;}
   .structure-chip .txt b{color:var(--stamp-blue);}
+  .comp-card{background:#fff;border:1px solid var(--ink);}
+  .comp-head{background:var(--matcha-d);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
+  .comp-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+  .comp-item{display:flex;align-items:center;gap:9px;font-size:12.5px;border-bottom:1px dotted var(--line);padding-bottom:7px;}
+  .comp-item .cn{width:22px;height:22px;flex-shrink:0;border-radius:50%;background:var(--hi-soft);border:1px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;}
 
   /* labels */
   .labels-row{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:820px){.labels-row{grid-template-columns:1fr;}}
   .label-card{background:#fff;border:1px solid var(--ink);}
-  .lc-head{
-    display:flex;justify-content:space-between;align-items:center;
-    background:var(--ink);color:#fff;padding:8px 14px;
-    font-family:'IBM Plex Mono',monospace;font-size:11.5px;
-  }
+  .lc-head{display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
   .lc-body{padding:18px;}
   .mock-label{border:1.5px dashed var(--ink-soft);padding:14px 16px;display:flex;flex-direction:column;gap:7px;}
   .mock-row{display:flex;justify-content:space-between;font-size:12.5px;border-bottom:1px dotted var(--line);padding-bottom:6px;}
@@ -286,16 +321,9 @@
   .mock-row .value{font-weight:700;font-family:'IBM Plex Mono',monospace;}
   .mock-name{font-size:15px;font-weight:900;line-height:1.35;}
   .mock-name .en{display:block;font-size:11px;font-weight:500;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;margin-top:2px;}
-  .barcode{
-    height:44px;margin-top:6px;
-    background:repeating-linear-gradient(90deg,#191a16 0,#191a16 2px,transparent 2px,transparent 3px,#191a16 3px,#191a16 4px,transparent 4px,transparent 7px,#191a16 7px,#191a16 8px,transparent 8px,transparent 10px);
-  }
+  .barcode{height:44px;margin-top:6px;background:repeating-linear-gradient(90deg,#191a16 0,#191a16 2px,transparent 2px,transparent 3px,#191a16 3px,#191a16 4px,transparent 4px,transparent 7px,#191a16 7px,#191a16 8px,transparent 8px,transparent 10px);}
   .barcode-caption{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);letter-spacing:.1em;}
-  .qty-chip{
-    display:inline-flex;align-items:center;gap:6px;background:var(--hi-soft);
-    border:1px solid var(--ink);padding:4px 10px;
-    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;align-self:flex-start;margin-top:2px;
-  }
+  .qty-chip{display:inline-flex;align-items:center;gap:6px;background:var(--hi-soft);border:1px solid var(--ink);padding:4px 10px;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;align-self:flex-start;margin-top:2px;}
 
   /* pallet */
   .pallet-wrap{display:grid;grid-template-columns:.85fr 1.15fr;gap:28px;background:#fff;border:1px solid var(--ink);padding:24px;}
@@ -309,34 +337,20 @@
   .pallet-data .prow{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
   .pallet-data .prow b{font-family:'IBM Plex Mono',monospace;}
   .flag-n{color:var(--stamp-red);font-weight:700;}
-  .placeholder-tag{display:inline-block;font-size:10px;color:var(--ink-soft);border:1px solid var(--line);padding:1px 6px;margin-left:6px;border-radius:10px;}
 
   /* ===== reference photo intake ===== */
   .intake-row{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   @media(max-width:820px){.intake-row{grid-template-columns:1fr;}}
   .intake-card{background:#fff;border:1px solid var(--ink);display:flex;flex-direction:column;}
-  .intake-head{
-    display:flex;justify-content:space-between;align-items:center;
-    padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#fff;
-  }
+  .intake-head{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#fff;}
   .intake-head.qc{background:var(--stamp-blue);}
   .intake-head.vendor{background:#3d6b45;}
-  .dropzone{
-    margin:14px;border:2px dashed var(--line);min-height:120px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-    color:var(--ink-soft);font-size:12.5px;cursor:pointer;text-align:center;padding:14px;
-    transition:border-color .15s, background .15s;
-  }
+  .dropzone{margin:14px;border:2px dashed var(--line);min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-soft);font-size:12.5px;cursor:pointer;text-align:center;padding:14px;transition:border-color .15s, background .15s;}
   .dropzone.over{border-color:var(--stamp-blue);background:#f2f5fb;}
   .dropzone .dz-icon{font-size:22px;}
   .dropzone input{display:none;}
   .dz-btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;justify-content:center;}
-  .dz-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;
-    border:1.5px solid var(--ink);background:#fff;color:var(--ink);
-    padding:8px 14px;cursor:pointer;border-radius:2px;
-    display:inline-flex;align-items:center;gap:6px;
-  }
+  .dz-btn{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;border:1.5px solid var(--ink);background:#fff;color:var(--ink);padding:8px 14px;cursor:pointer;border-radius:2px;display:inline-flex;align-items:center;gap:6px;}
   .dz-btn:active{background:var(--ink);color:#fff;}
   .dz-btn.cam{border-color:var(--stamp-blue);color:var(--stamp-blue);}
   .dz-btn.cam:active{background:var(--stamp-blue);color:#fff;}
@@ -346,121 +360,40 @@
   .thumb-meta{flex:1;min-width:140px;font-size:11.5px;line-height:1.6;color:var(--ink-soft);}
   .thumb-meta b{color:var(--ink);font-size:12px;display:block;}
   .thumb-ctrl{display:flex;flex-direction:column;gap:5px;}
-  .face-select{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;
-    border:1.5px solid var(--ink);background:#fff;border-radius:2px;
-  }
-  .apply-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
-    border:1.5px solid var(--stamp-blue);background:#fff;color:var(--stamp-blue);
-    padding:4px 10px;cursor:pointer;border-radius:2px;
-  }
+  .face-select{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1.5px solid var(--ink);background:#fff;border-radius:2px;}
+  .apply-btn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;border:1.5px solid var(--stamp-blue);background:#fff;color:var(--stamp-blue);padding:4px 10px;cursor:pointer;border-radius:2px;}
   .apply-btn.applied{background:var(--stamp-blue);color:#fff;}
-  .remove-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:10px;
-    border:1px solid var(--line);background:#fff;color:var(--ink-soft);
-    padding:3px 8px;cursor:pointer;border-radius:2px;
-  }
-  .face.has-photo{padding:0 !important;overflow:hidden;}
-  .face.has-photo > *{display:none;}
-  .face.has-photo .photo-fill{
-    display:block;width:100%;height:100%;
-    background-size:cover;background-position:center;
-  }
-  .face.has-photo .imprint-overlay{
-    display:flex;position:absolute;inset:0;align-items:flex-end;justify-content:center;
-    padding:4px;pointer-events:none;
-  }
-  .imprint-overlay span{
-    font-family:'IBM Plex Mono',monospace;font-size:7px;font-weight:600;
-    background:rgba(255,255,255,.82);color:#111;padding:2px 6px;border:1px solid var(--stamp-red);
-    letter-spacing:.05em;
-  }
+  .remove-btn{font-family:'IBM Plex Mono',monospace;font-size:10px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);padding:3px 8px;cursor:pointer;border-radius:2px;}
   .intake-note{font-size:11px;color:var(--ink-soft);padding:0 14px 14px;line-height:1.7;}
-  .session-warn{
-    font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--stamp-red);
-    padding:0 14px 12px;
-  }
+  .session-warn{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--stamp-red);padding:0 14px 12px;}
 
   /* ===== guided capture / crop modal ===== */
-  .cap-modal{
-    position:fixed;inset:0;background:rgba(12,13,10,.92);z-index:1000;
-    display:none;flex-direction:column;
-  }
+  .cap-modal{position:fixed;inset:0;background:rgba(12,13,10,.92);z-index:1000;display:none;flex-direction:column;}
   .cap-modal.open{display:flex;}
-  .cap-top{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding:12px 16px;color:#fff;flex-wrap:wrap;
-  }
+  .cap-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;color:#fff;flex-wrap:wrap;}
   .cap-top .cap-title{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;}
-  .cap-face-sel{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;padding:7px 10px;
-    border:1.5px solid #fff;background:transparent;color:#fff;border-radius:2px;
-  }
+  .cap-face-sel{font-family:'IBM Plex Mono',monospace;font-size:13px;padding:7px 10px;border:1.5px solid #fff;background:transparent;color:#fff;border-radius:2px;}
   .cap-face-sel option{color:#111;}
-  .cap-stage{
-    flex:1;position:relative;overflow:hidden;
-    display:flex;align-items:center;justify-content:center;
-    touch-action:none;
-  }
-  .cap-stage video, .cap-stage img.crop-img{
-    position:absolute;left:50%;top:50%;
-    transform:translate(-50%,-50%);
-    max-width:none;
-    user-select:none;-webkit-user-drag:none;
-  }
+  .cap-stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none;}
+  .cap-stage video, .cap-stage img.crop-img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:none;user-select:none;-webkit-user-drag:none;}
   .cap-stage video{width:100%;height:100%;object-fit:cover;}
-  .guide{
-    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    border:2.5px solid #f4d13a;
-    box-shadow:0 0 0 2000px rgba(0,0,0,.45);
-    pointer-events:none;
-  }
-  .guide::before,.guide::after{
-    content:'';position:absolute;background:rgba(244,209,58,.5);
-  }
-  .guide::before{left:33.33%;right:33.33%;top:0;bottom:0;border-left:1px dashed rgba(244,209,58,.55);border-right:1px dashed rgba(244,209,58,.55);background:none;}
-  .guide::after{top:33.33%;bottom:33.33%;left:0;right:0;border-top:1px dashed rgba(244,209,58,.55);border-bottom:1px dashed rgba(244,209,58,.55);background:none;}
-  .guide-label{
-    position:absolute;top:-26px;left:0;
-    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f4d13a;letter-spacing:.08em;
-    white-space:nowrap;
-  }
-  .cap-bottom{
-    display:flex;justify-content:center;align-items:center;gap:18px;
-    padding:16px;flex-wrap:wrap;
-  }
-  .shutter{
-    width:64px;height:64px;border-radius:50%;
-    border:4px solid #fff;background:rgba(255,255,255,.25);
-    cursor:pointer;
-  }
+  .guide{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:2.5px solid #f4d13a;box-shadow:0 0 0 2000px rgba(0,0,0,.45);pointer-events:none;}
+  .guide::before,.guide::after{content:'';position:absolute;}
+  .guide::before{left:33.33%;right:33.33%;top:0;bottom:0;border-left:1px dashed rgba(244,209,58,.55);border-right:1px dashed rgba(244,209,58,.55);}
+  .guide::after{top:33.33%;bottom:33.33%;left:0;right:0;border-top:1px dashed rgba(244,209,58,.55);border-bottom:1px dashed rgba(244,209,58,.55);}
+  .guide-label{position:absolute;top:-26px;left:0;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f4d13a;letter-spacing:.08em;white-space:nowrap;}
+  .cap-bottom{display:flex;justify-content:center;align-items:center;gap:18px;padding:16px;flex-wrap:wrap;}
+  .shutter{width:64px;height:64px;border-radius:50%;border:4px solid #fff;background:rgba(255,255,255,.25);cursor:pointer;}
   .shutter:active{background:#fff;}
-  .cap-btn{
-    font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;
-    border:1.5px solid #fff;background:transparent;color:#fff;
-    padding:10px 18px;cursor:pointer;border-radius:2px;
-  }
+  .cap-btn{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;border:1.5px solid #fff;background:transparent;color:#fff;padding:10px 18px;cursor:pointer;border-radius:2px;}
   .cap-btn.confirm{border-color:#f4d13a;color:#f4d13a;}
-  .cap-hint{
-    text-align:center;color:rgba(255,255,255,.75);
-    font-size:11.5px;padding:0 16px 6px;font-family:'IBM Plex Mono',monospace;
-  }
+  .cap-hint{text-align:center;color:rgba(255,255,255,.75);font-size:11.5px;padding:0 16px 6px;font-family:'IBM Plex Mono',monospace;}
 
   /* provenance grades */
-  .grade{
-    display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;
-    padding:1px 7px;border-radius:2px;margin-left:6px;vertical-align:middle;letter-spacing:.03em;
-  }
+  .grade{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;padding:1px 7px;border-radius:2px;margin-left:6px;vertical-align:middle;letter-spacing:.03em;}
   .g-a{background:#dcebdc;color:#2c5a34;border:1px solid #2c5a34;}
   .g-b{background:#e3e9f5;color:#2b4a8c;border:1px solid #2b4a8c;}
   .g-c{background:#f7e3dc;color:#b23a24;border:1px solid #b23a24;}
-  .prov-card{background:#fff;border:1px solid var(--ink);margin-top:14px;}
-  .prov-head{background:var(--stamp-blue);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
-  .prov-body{padding:14px;font-size:12.5px;line-height:1.75;}
-  .prov-body .pr{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px dotted var(--line);}
-  .prov-body .pr:last-child{border-bottom:none;}
-  .prov-body .pr .g{flex-shrink:0;margin-top:1px;}
   footer{border-top:3px solid var(--ink);padding-top:16px;font-size:11.5px;color:var(--ink-soft);line-height:1.7;}
 </style>
 </head>
@@ -491,14 +424,29 @@
       <div class="si-body">
         <div class="si-drop" id="siDrop">
           <b>포장사양서 PDF를 여기로 드래그하거나 클릭해서 첨부</b><br>
-          텍스트형 PDF는 자재번호·제품명·약호·용량 등을 자동 추출합니다<br>
-          <span style="font-size:11px;">스캔본/이미지는 추출이 제한되어 직접 입력이 필요할 수 있습니다</span>
+          텍스트형 PDF는 자재번호·제품명·약호·용량·컷팅유형·착인 등을 자동 추출하고 유형을 판별합니다<br>
+          <span style="font-size:11px;">스캔본/이미지는 추출이 제한되어 아래에서 유형을 고르고 직접 입력이 필요할 수 있습니다</span>
           <button type="button" class="si-attach-btn" id="siAttachBtn">&#128196; 사양서 첨부 (PDF/이미지)</button>
           <input type="file" accept="application/pdf,image/*" id="siInput">
         </div>
       </div>
-      <div class="si-status" id="siStatus">대기 중 — 사양서를 첨부하거나, 화면의 점선 밑줄 값을 클릭해 직접 입력하세요. 사양서에 없는 항목은 <span class="gbadge">현장포장사양관리 적용 › 확인필요</span> 기준값이 자동 적용됩니다.</div>
+      <div class="si-status" id="siStatus">대기 중 — 사양서를 첨부하거나 아래에서 포장 유형을 고르세요. 미기재 항목은 <span class="gbadge">현장포장사양관리 적용 › 확인필요</span> 기준값이 자동 적용됩니다.</div>
     </div>
+  </section>
+
+  <!-- 00.5 TYPE SELECT -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">00·5</span><h2>포장 유형 선택</h2>
+      <span class="sec-note">유형에 따라 3D 모델·기준정보 항목·라벨/적재 섹션이 전환됩니다</span>
+    </div>
+    <div class="typebar" id="typebar">
+      <div class="typecard" data-type="tube"><div class="ic">&#129380;</div><div class="nm">튜브</div><div class="ds">원통 · 실링 압인</div></div>
+      <div class="typecard" data-type="container"><div class="ic">&#129701;</div><div class="nm">용기 / 쿠션</div><div class="ds">원형 · 후면하단 착인</div></div>
+      <div class="typecard" data-type="carton"><div class="ic">&#128230;</div><div class="nm">단상자</div><div class="ds">박스 · 밀면 착인</div></div>
+      <div class="typecard" data-type="set"><div class="ic">&#127873;</div><div class="nm">셋트 케이스</div><div class="ds">구성품 · 밀면 착인</div></div>
+    </div>
+    <div class="autodetect" id="autodetect">자동 판별 대기 — 사양서의 <b>착인블록(용기/단상자)</b> · <b>컷팅유형</b> · <b>단품/세트</b> 값으로 유형을 추정합니다.</div>
   </section>
 
   <!-- 01 -->
@@ -507,92 +455,25 @@
       <span class="sec-num">01</span><h2>사양서 기준 정보</h2>
       <span class="sec-note">업로드된 화장품 포장사양서 원본 기재값</span>
     </div>
-    <div class="spec-grid">
-      <div class="spec-cell hi"><div class="k">제품명 (국문)</div><div class="v fv" data-f="nameKr" data-ph="국문 제품명">닥터슈라클 제주말차 클레이 마스크 클렌저</div></div>
-      <div class="spec-cell"><div class="k">제품명 (영문)</div><div class="v fv" data-f="nameEn" data-ph="영문 제품명">Dr.Ceuracle JEJU MATCHA CLAY MASK CLEANSER</div></div>
-      <div class="spec-cell hi"><div class="k">제품약호</div><div class="v mono fv" data-f="abbr2" data-ph="약호">EGC-JMFCC</div></div>
-      <div class="spec-cell"><div class="k">표시용량</div><div class="v fv" data-f="volume" data-ph="용량">120ML</div></div>
-      <div class="spec-cell"><div class="k">단품/세트</div><div class="v fv" data-f="setType" data-ph="단품/세트">단품</div></div>
-      <div class="spec-cell"><div class="k">로트방식</div><div class="v fv" data-f="lot" data-ph="로트방식">KKM 기준</div></div>
-      <div class="spec-cell hi"><div class="k">포장 구조</div><div class="v fv" data-f="structure" data-ph="포장 구조">튜브 + 단상자</div></div>
-      <div class="spec-cell hi"><div class="k">단상자 착인</div><div class="v"><span class="fv" data-f="imprintPos" data-ph="위치">밀면</span> · <span class="fv" data-f="imprintColor" data-ph="색상">검정색</span><span class="gslot" data-g="imprintPos"></span></div></div>
-    </div>
+    <div class="spec-grid" id="specGrid"></div>
   </section>
 
   <!-- 02 3D -->
   <section>
     <div class="sec-head">
-      <span class="sec-num">02</span><h2>단상자 3D 렌더링 · 착인 위치 확인</h2>
-      <span class="sec-note">드래그로 회전 · 버튼으로 밀면(착인면) 바로보기</span>
+      <span class="sec-num">02</span><h2 id="viewerTitle">3D 렌더링 · 착인 위치 확인</h2>
+      <span class="sec-note" id="viewerNote">드래그로 회전 · 버튼으로 착인면 바로보기</span>
     </div>
     <div class="viewer-wrap">
       <div class="stage-card">
-        <div class="stage-head"><span>UNIT CARTON · 단상자</span><span>디자인: 동일라인 차용 <span class="grade g-b" style="margin-left:4px;">B</span></span></div>
+        <div class="stage-head"><span id="stageLabel">UNIT CARTON · 단상자</span><span id="stageGrade">참고용 재구성 <span class="grade g-c" style="margin-left:4px;">C</span></span></div>
         <div class="stage" id="stage">
-          <div class="carton" id="carton">
-            <div class="face f-front">
-              <div class="fb-brand">Dr.Ceuracle</div>
-              <div class="fb-tag">Curing skin, Caring beauty</div>
-              <div class="fb-rule"></div>
-              <div class="fb-name" data-bind-html="nameEnBox"><em>JEJU MATCHA</em><br>CLAY MASK<br>CLEANSER</div>
-              <div class="fb-kr" data-bind="nameKrShort">제주말차 클레이 마스크 클렌저</div>
-              <div class="fb-swatch"></div>
-              <div class="fb-claim">2-in-1 · Clay Mask + Cleanser</div>
-              <div class="fb-vol" data-bind="volume">120ML</div>
-            </div>
-            <div class="face f-back">
-              <div class="bk-line"></div><div class="bk-line s"></div><div class="bk-line"></div>
-              <div class="bk-line s"></div><div class="bk-line"></div><div class="bk-line s"></div>
-              <div class="bk-bar"></div>
-              <div class="bk-cap">BARCODE</div>
-            </div>
-            <div class="face f-left"><div class="side-txt">JEJU MATCHA CLAY MASK CLEANSER</div></div>
-            <div class="face f-right"><div class="side-txt">Dr.Ceuracle · 120ml</div></div>
-            <div class="face f-top"><div class="top-logo">Dr.C</div></div>
-            <div class="face f-bottom">
-              <div class="imprint-tag">밀면 착인 (검정)</div>
-              <div class="imprint">제조번호 00000<br>YYYYMMDD까지</div>
-            </div>
-          </div>
+          <div class="model-hold" id="modelHold"></div>
           <div class="stage-hint">마우스 드래그 / 터치 스와이프로 자유 회전</div>
         </div>
-        <div class="ctrl-rail">
-          <button class="ctrl-btn" data-view="front">전면</button>
-          <button class="ctrl-btn" data-view="back">후면</button>
-          <button class="ctrl-btn" data-view="side">측면</button>
-          <button class="ctrl-btn hot" data-view="bottom">밀면 (착인면)</button>
-          <button class="ctrl-btn" id="spinBtn">자동회전</button>
-        </div>
+        <div class="ctrl-rail" id="ctrlRail"></div>
       </div>
-
-      <div class="imprint-panel">
-        <div class="structure-chip">
-          <div class="icon">&#128230;</div>
-          <div class="txt">본 품목은 <b>튜브가 단상자에 포장되는 구조</b>입니다. 사양서의 "단상자 착인" 항목은 상자 <b>밀면(바닥면)</b>에 제조번호와 사용기한을 <b>검정색으로 착인</b>한다는 기준입니다.</div>
-        </div>
-        <div class="ip-card">
-          <div class="ip-head"><span>착인 사양 (사양서 기준)</span><span>IMPRINT SPEC</span></div>
-          <div class="ip-body">
-            <div class="ip-row"><span class="k">확인사양 ①</span><span class="v mono fv" data-f="imprint1" data-ph="예: 제조번호 00000">제조번호 — 00000</span></div>
-            <div class="ip-row"><span class="k">확인사양 ②</span><span class="v mono fv" data-f="imprint2" data-ph="예: YYYYMMDD까지">사용기한까지 — YYYYMMDD까지</span></div>
-            <div class="ip-row"><span class="k">착인 위치</span><span class="v"><span class="fv" data-f="imprintPos2" data-ph="위치">밀면 (상자 바닥면)</span><span class="gslot" data-g="imprintPos"></span></span></div>
-            <div class="ip-row"><span class="k">착인 색상</span><span class="v fv" data-f="imprintColor2" data-ph="색상">검정색</span></div>
-            <div class="ip-row"><span class="k">로트방식</span><span class="v fv" data-f="lot2" data-ph="로트방식">KKM 기준</span></div>
-          </div>
-        </div>
-        <div class="ip-note">
-          검수 포인트: ① 착인이 밀면에 있는지(측면·상면 오착인 여부) ② 검정 착인의 선명도/번짐
-          ③ 로트번호 체계가 KKM 기준과 일치하는지 ④ 사용기한 서식이 YYYYMMDD + "까지" 문구인지.
-        </div>
-        <div class="prov-card">
-          <div class="prov-head"><span>디자인 출처 · 신뢰도 등급</span><span>PROVENANCE</span></div>
-          <div class="prov-body">
-            <div class="pr"><span class="g grade g-a">A</span><span><b>사양서 원문</b> — 제품명 국/영문, 약호, 용량, 착인 위치·색상·서식, 라벨 항목, 부착위치/개입수. 업로드 원본 그대로.</span></div>
-            <div class="pr"><span class="g grade g-b">B</span><span><b>공개채널 확인·동일라인 차용</b> — 화이트 카톤 + 다크그린 타이포 + 말차 그린 모티프. 동일 라인 제주말차 클레이팩 단상자(글로벌 판매채널·이미지 검색, 2026-07 조회) 디자인 언어에서 차용. 브랜드 슬로건 "Curing skin, Caring beauty"는 공식몰 확인값.</span></div>
-            <div class="pr"><span class="g grade g-c">C</span><span><b>미검증 재구성</b> — 전면 레이아웃 세부 배치, 후면 표시사항 배열, 상자 치수 비율. 120ml 클렌저는 신규 품목으로 실물 단상자 이미지 미확보. 실물 사진 확보 시 교체 필요.</span></div>
-          </div>
-        </div>
-      </div>
+      <div class="imprint-panel" id="imprintPanel"></div>
     </div>
   </section>
 
@@ -631,87 +512,87 @@
           <input type="file" accept="image/*" capture="environment" class="in-cam" data-src="협력업체입력">
         </div>
         <div class="thumb-list" id="listVD"></div>
-        <div class="intake-note">생산 로트 실물 사진 적용 시 착인면(밀면)은 사양 기준 문구가 반투명 오버레이로 함께 표시되어 즉시 대조 가능합니다.</div>
+        <div class="intake-note">생산 로트 실물 사진 적용 시 착인면은 사양 기준 문구가 반투명 오버레이로 함께 표시되어 즉시 대조 가능합니다.</div>
       </div>
     </div>
     <div class="session-warn" style="padding-top:10px;">※ 사진은 브라우저 메모리에만 보관됩니다 — 새로고침 시 초기화되므로, 확정본은 별도 보관하세요.</div>
   </section>
 
-  <!-- 03 -->
-  <section>
-    <div class="sec-head">
-      <span class="sec-num">03</span><h2>인박스 / 아웃박스 라벨 예시</h2>
-      <span class="sec-note">사양서 부착위치·수량 기준 재구성</span>
-    </div>
-    <div class="labels-row">
-      <div class="label-card">
-        <div class="lc-head"><span>인박스 라벨</span><span>부착위치: <span class="fv" data-f="inboxPos" data-ph="위치" style="color:#fff;">상단</span><span class="gslot" data-g="inboxPos"></span></span></div>
-        <div class="lc-body">
-          <div class="mock-label">
-            <div class="mock-name"><span data-bind="nameKr">닥터슈라클 제주말차 클레이 마스크 클렌저</span>
-              <span class="en" data-bind="nameEn">Dr.Ceuracle JEJU MATCHA CLAY MASK CLEANSER</span></div>
-            <div class="mock-row"><span class="label">제품코드</span><span class="value" data-bind="custcode">DNJMFCC01</span></div>
-            <div class="mock-row"><span class="label">제조번호</span><span class="value">00000 <span class="gslot" data-g="boxLabelLot"></span></span></div>
-            <div class="mock-row"><span class="label">제조일자</span><span class="value">YYYY.MM.DD</span></div>
-            <div class="mock-row"><span class="label">사용기한</span><span class="value">YYYY.MM.DD</span></div>
-            <div class="barcode"></div>
-            <div class="barcode-caption">BARCODE — 바코드 이미지 + 숫자 <span class="gslot" data-g="barcode"></span></div>
-            <span class="qty-chip">수량 <span class="fv" data-f="inboxQty" data-ph="0">10</span>EA · 잔량 <span class="fv" data-f="inboxRem" data-ph="구분">가능</span> <span class="gslot" data-g="remainder"></span></span>
+  <!-- packed-only sections (carton / set) -->
+  <div id="packedSections">
+    <!-- 03 -->
+    <section>
+      <div class="sec-head">
+        <span class="sec-num">03</span><h2>인박스 / 아웃박스 라벨 예시</h2>
+        <span class="sec-note">사양서 부착위치·수량 기준 재구성</span>
+      </div>
+      <div class="labels-row">
+        <div class="label-card">
+          <div class="lc-head"><span>인박스 라벨</span><span>부착위치: <span class="fv" data-f="inboxPos" data-ph="위치" style="color:#fff;">해당없음</span><span class="gslot" data-g="inboxPos"></span></span></div>
+          <div class="lc-body">
+            <div class="mock-label">
+              <div class="mock-name"><span data-bind="nameKr">제품명</span><span class="en" data-bind="nameEn">Product name</span></div>
+              <div class="mock-row"><span class="label">제품코드</span><span class="value" data-bind="custcode">CODE</span></div>
+              <div class="mock-row"><span class="label">제조번호</span><span class="value">00000 <span class="gslot" data-g="boxLabelLot"></span></span></div>
+              <div class="mock-row"><span class="label">제조일자</span><span class="value">YYYY.MM.DD</span></div>
+              <div class="mock-row"><span class="label">사용기한</span><span class="value">YYYY.MM.DD</span></div>
+              <div class="barcode"></div>
+              <div class="barcode-caption">BARCODE — 바코드 이미지 + 숫자 <span class="gslot" data-g="barcode"></span></div>
+              <span class="qty-chip">수량 <span class="fv" data-f="inboxQty" data-ph="0">-</span>EA · 잔량 <span class="fv" data-f="inboxRem" data-ph="구분">해당없음</span> <span class="gslot" data-g="remainder"></span></span>
+            </div>
+          </div>
+        </div>
+        <div class="label-card">
+          <div class="lc-head"><span>아웃박스 라벨</span><span>부착위치: <span class="fv" data-f="outboxPos" data-ph="위치" style="color:#fff;">단측</span><span class="gslot" data-g="outboxPos"></span></span></div>
+          <div class="lc-body">
+            <div class="mock-label">
+              <div class="mock-name"><span data-bind="nameKr">제품명</span><span class="en" data-bind="nameEn">Product name</span></div>
+              <div class="mock-row"><span class="label">제품코드</span><span class="value" data-bind="custcode">CODE</span></div>
+              <div class="mock-row"><span class="label">제조번호</span><span class="value">00000 <span class="gslot" data-g="boxLabelLot"></span></span></div>
+              <div class="mock-row"><span class="label">제조일자</span><span class="value">YYYY.MM.DD</span></div>
+              <div class="mock-row"><span class="label">사용기한</span><span class="value">YYYY.MM.DD</span></div>
+              <div class="barcode"></div>
+              <div class="barcode-caption">BARCODE — 바코드 이미지 + 숫자 <span class="gslot" data-g="barcode"></span></div>
+              <span class="qty-chip">수량 <span class="fv" data-f="outboxQty" data-ph="0">20</span>EA · 잔량 <span class="fv" data-f="outboxRem" data-ph="구분">가능</span> <span class="gslot" data-g="remainder"></span> · 테이핑 <span class="fv" data-f="taping" data-ph="일자/H">일자</span></span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="label-card">
-        <div class="lc-head"><span>아웃박스 라벨</span><span>부착위치: <span class="fv" data-f="outboxPos" data-ph="위치" style="color:#fff;">단측</span><span class="gslot" data-g="outboxPos"></span></span></div>
-        <div class="lc-body">
-          <div class="mock-label">
-            <div class="mock-name"><span data-bind="nameKr">닥터슈라클 제주말차 클레이 마스크 클렌저</span>
-              <span class="en" data-bind="nameEn">Dr.Ceuracle JEJU MATCHA CLAY MASK CLEANSER</span></div>
-            <div class="mock-row"><span class="label">제품코드</span><span class="value" data-bind="custcode">DNJMFCC01</span></div>
-            <div class="mock-row"><span class="label">제조번호</span><span class="value">00000 <span class="gslot" data-g="boxLabelLot"></span></span></div>
-            <div class="mock-row"><span class="label">제조일자</span><span class="value">YYYY.MM.DD</span></div>
-            <div class="mock-row"><span class="label">사용기한</span><span class="value">YYYY.MM.DD</span></div>
-            <div class="barcode"></div>
-            <div class="barcode-caption">BARCODE — 바코드 이미지 + 숫자 <span class="gslot" data-g="barcode"></span></div>
-            <span class="qty-chip">수량 <span class="fv" data-f="outboxQty" data-ph="0">80</span>EA · 잔량 <span class="fv" data-f="outboxRem" data-ph="구분">가능</span> <span class="gslot" data-g="remainder"></span></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- 04 -->
-  <section>
-    <div class="sec-head">
-      <span class="sec-num">04</span><h2>파레트 적재 기준</h2>
-      <span class="sec-note">수출용 (검정색)</span>
-    </div>
-    <div class="pallet-wrap">
-      <div>
-        <div class="pallet-stage">
-          <div class="pallet-stack">
-            <div class="pallet-layer"></div><div class="pallet-layer"></div><div class="pallet-layer"></div>
+    <!-- 04 -->
+    <section>
+      <div class="sec-head">
+        <span class="sec-num">04</span><h2>파레트 적재 기준</h2>
+        <span class="sec-note">사양서 팔레트 항목 기준</span>
+      </div>
+      <div class="pallet-wrap">
+        <div>
+          <div class="pallet-stage">
+            <div class="pallet-stack">
+              <div class="pallet-layer"></div><div class="pallet-layer"></div><div class="pallet-layer"></div>
+            </div>
+            <div class="pallet-board"></div>
           </div>
-          <div class="pallet-board"></div>
+          <div class="pallet-note">예시 적층 — 실제 1단 BOX 수·단수는 사양서 기재값 확인</div>
         </div>
-        <div class="pallet-note">예시 적층 — 실제 1단 BOX 수·단수는 사양서 미기재</div>
+        <div class="pallet-data">
+          <div class="prow"><span>팔레트 종류</span><b class="fv" data-f="palletType" data-ph="종류">수출용 (검정색)</b></div>
+          <div class="prow"><span>팔레트포함 적재높이</span><b><span class="fv" data-f="palletHeight" data-ph="높이">160cm 이하</span><span class="gslot" data-g="palletHeight"></span></b></div>
+          <div class="prow"><span>1단 적재 BOX 수</span><b><span class="fv" data-f="palletBox" data-ph="미기재">확인 필요</span><span class="gslot" data-g="palletBox"></span></b></div>
+          <div class="prow"><span>적재 단수</span><b><span class="fv" data-f="palletTier" data-ph="미기재">확인 필요</span><span class="gslot" data-g="palletBox"></span></b></div>
+          <div class="prow"><span>팔레트 라벨 부착여부</span><b class="flag-n fv" data-f="palletLabel" data-ph="Y/N">N (미부착)</b></div>
+          <div class="prow"><span>잔량 구분</span><b><span class="fv" data-f="remainderRule" data-ph="기준">—</span><span class="gslot" data-g="remainder"></span></b></div>
+          <div class="prow"><span>비고</span><b class="fv" data-f="note" data-ph="—">—</b></div>
+        </div>
       </div>
-      <div class="pallet-data">
-        <div class="prow"><span>팔레트 종류</span><b class="fv" data-f="palletType" data-ph="종류">수출용 (검정색)</b></div>
-        <div class="prow"><span>팔레트포함 적재높이</span><b><span class="fv" data-f="palletHeight" data-ph="높이">170cm 이하</span><span class="gslot" data-g="palletHeight"></span></b></div>
-        <div class="prow"><span>1단 적재 BOX 수</span><b><span class="fv" data-f="palletBox" data-ph="미기재">확인 필요</span><span class="gslot" data-g="palletBox"></span></b></div>
-        <div class="prow"><span>적재 단수</span><b><span class="fv" data-f="palletTier" data-ph="미기재">확인 필요</span><span class="gslot" data-g="palletBox"></span></b></div>
-        <div class="prow"><span>팔레트 라벨 부착여부</span><b class="flag-n fv" data-f="palletLabel" data-ph="Y/N">N (미부착)</b></div>
-        <div class="prow"><span>잔량 구분</span><b><span class="fv" data-f="remainderRule" data-ph="기준">—</span><span class="gslot" data-g="remainder"></span></b></div>
-        <div class="prow"><span>비고</span><b class="fv" data-f="note" data-ph="—">—</b></div>
-      </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
-  <footer>
-    본 페이지는 첨부된 화장품 포장사양서의 기재 항목을 구조화하고,
-    단상자 착인 사양에 따라 단상자를 3D로 재구성한 참고용 자료입니다.
-    사양서 미기재 항목에는 「현장 포장 사양 관리 v1 (2025-02-04)」 가이드 기준값이 [현장포장사양관리 적용 › 확인필요] 배지와 함께 적용되며, 해당 값은 확정 전 사양 담당자 확인이 필요합니다.
-    상자 그래픽·치수 비율은 사양서 기재값 기반의 목업이며 실제 인쇄 디자인과 다릅니다.
+  <footer id="footer">
+    본 페이지는 첨부된 화장품 포장사양서의 기재 항목을 구조화하고, 포장 유형별(튜브·용기·단상자·셋트) 착인·구조 사양에 따라 3D로 재구성한 참고용 자료입니다.
+    사양서 미기재 항목에는 「현장 포장 사양 관리 v1 (2025-02-04)」 가이드 기준값이 [현장포장사양관리 적용 › 확인필요] 배지와 함께 적용되며, 확정 전 사양 담당자 확인이 필요합니다.
+    그래픽·치수 비율은 사양서 기재값 기반의 목업이며 실제 인쇄·성형과 다릅니다.
     로트번호·사용기한(00000, YYYYMMDD)은 사양서의 서식 예시 그대로이며 실제 값이 아닙니다.
     공식 검수·CAPA 판정에는 현품 실사 및 원본 사양서 대조가 필요합니다.
   </footer>
@@ -722,19 +603,13 @@
 <div class="cap-modal" id="capModal">
   <div class="cap-top">
     <span class="cap-title" id="capTitle">GUIDED CAPTURE</span>
-    <select class="cap-face-sel" id="capFaceSel">
-      <option value="front">전면 (96:210)</option>
-      <option value="back">후면 (96:210)</option>
-      <option value="left">측면·좌 (56:210)</option>
-      <option value="right">측면·우 (56:210)</option>
-      <option value="bottom">밀면·착인면 (96:56)</option>
-    </select>
+    <select class="cap-face-sel" id="capFaceSel"></select>
     <button class="cap-btn" id="capClose">닫기</button>
   </div>
   <div class="cap-stage" id="capStage">
     <video id="capVideo" autoplay playsinline muted style="display:none;"></video>
     <img class="crop-img" id="cropImg" style="display:none;">
-    <div class="guide" id="guide"><span class="guide-label" id="guideLabel">전면 프레임에 맞춰 주세요</span></div>
+    <div class="guide" id="guide"><span class="guide-label" id="guideLabel">프레임에 맞춰 주세요</span></div>
   </div>
   <div class="cap-hint" id="capHint"></div>
   <div class="cap-bottom">
@@ -744,385 +619,21 @@
 </div>
 
 <script>
+/* =========================================================================
+   포장사양서 범용 뷰어 — type-driven runtime
+   유형: tube(튜브) · container(용기/쿠션) · carton(단상자) · set(셋트)
+   ========================================================================= */
 (function(){
-  const stage = document.getElementById('stage');
-  const carton = document.getElementById('carton');
-  const spinBtn = document.getElementById('spinBtn');
+  'use strict';
 
-  let rx = -14, ry = 28;      // current rotation
-  let dragging = false, lx=0, ly=0;
-  let spinning = false, rafId = null;
+  /* ---------- shared state ---------- */
+  const state = {};                 // field key -> value
+  const boundEls = new WeakSet();   // .fv already wired
+  let currentType = 'carton';
 
-  function apply(){
-    carton.style.transform = 'rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
-  }
-  apply();
-
-  function startDrag(x,y){
-    dragging = true; lx = x; ly = y;
-    carton.classList.remove('snap');
-    stopSpin();
-  }
-  function moveDrag(x,y){
-    if(!dragging) return;
-    ry += (x - lx) * 0.45;
-    rx -= (y - ly) * 0.45;
-    rx = Math.max(-110, Math.min(110, rx));
-    lx = x; ly = y;
-    apply();
-  }
-  function endDrag(){ dragging = false; }
-
-  stage.addEventListener('mousedown', e => startDrag(e.clientX, e.clientY));
-  window.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
-  window.addEventListener('mouseup', endDrag);
-
-  stage.addEventListener('touchstart', e => {
-    const t = e.touches[0]; startDrag(t.clientX, t.clientY);
-  }, {passive:true});
-  stage.addEventListener('touchmove', e => {
-    const t = e.touches[0]; moveDrag(t.clientX, t.clientY);
-    e.preventDefault();
-  }, {passive:false});
-  stage.addEventListener('touchend', endDrag);
-
-  // snap views
-  const views = {
-    front:  {x:-8,  y:0},
-    back:   {x:-8,  y:180},
-    side:   {x:-8,  y:90},
-    bottom: {x:82,  y:20}   // tilt to expose 밀면
-  };
-  document.querySelectorAll('.ctrl-btn[data-view]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      stopSpin();
-      const v = views[btn.dataset.view];
-      // normalize ry to nearest equivalent for shortest travel
-      const targetY = v.y + Math.round((ry - v.y) / 360) * 360;
-      carton.classList.add('snap');
-      rx = v.x; ry = targetY;
-      apply();
-    });
-  });
-
-  // auto spin
-  function spin(){
-    ry += 0.5;
-    apply();
-    rafId = requestAnimationFrame(spin);
-  }
-  function stopSpin(){
-    spinning = false;
-    spinBtn.classList.remove('spin-on');
-    if(rafId) cancelAnimationFrame(rafId);
-  }
-  spinBtn.addEventListener('click', () => {
-    if(spinning){ stopSpin(); return; }
-    spinning = true;
-    carton.classList.remove('snap');
-    spinBtn.classList.add('spin-on');
-    spin();
-  });
-})();
-
-/* ===== reference photo intake ===== */
-(function(){
-  const faceMap = {
-    front:  document.querySelector('.f-front'),
-    back:   document.querySelector('.f-back'),
-    left:   document.querySelector('.f-left'),
-    right:  document.querySelector('.f-right'),
-    bottom: document.querySelector('.f-bottom')
-  };
-  const faceLabel = {front:'전면', back:'후면', left:'측면(좌)', right:'측면(우)', bottom:'밀면(착인)', none:'참고만'};
-  const applied = {};   // faceKey -> item id
-  let seq = 0;
-
-  function fmtNow(){
-    const d = new Date();
-    const z = n => String(n).padStart(2,'0');
-    return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes());
-  }
-
-  function applyPhoto(faceKey, dataUrl, itemId){
-    // clear previous photo on this face
-    Object.keys(applied).forEach(k => { if(applied[k] === itemId) clearFace(k); });
-    if(faceKey === 'none') return;
-    if(applied[faceKey]) clearFace(faceKey);
-    const face = faceMap[faceKey];
-    face.classList.add('has-photo');
-    const fill = document.createElement('div');
-    fill.className = 'photo-fill';
-    fill.style.backgroundImage = 'url(' + dataUrl + ')';
-    face.appendChild(fill);
-    if(faceKey === 'bottom'){
-      const ov = document.createElement('div');
-      ov.className = 'imprint-overlay';
-      ov.innerHTML = '<span>기준: ' + (window.__spec ? window.__spec.get('imprint1') + ' · ' + window.__spec.get('imprint2') + ' · ' + window.__spec.get('imprintColor') + '착인' : '') + '</span>';
-      face.appendChild(ov);
-    }
-    applied[faceKey] = itemId;
-  }
-
-  function clearFace(faceKey){
-    const face = faceMap[faceKey];
-    face.classList.remove('has-photo');
-    face.querySelectorAll('.photo-fill, .imprint-overlay').forEach(e => e.remove());
-    delete applied[faceKey];
-  }
-
-  function addThumb(listEl, dataUrl, srcLabel, preFace){
-    const id = 'ph' + (++seq);
-    const item = document.createElement('div');
-    item.className = 'thumb-item';
-    item.innerHTML =
-      '<img src="' + dataUrl + '">' +
-      '<div class="thumb-meta"><b>' + srcLabel + ' #' + seq + '</b>입력 ' + fmtNow() + '<br>등급: <span class="grade g-a">A</span> 실물 확인</div>' +
-      '<div class="thumb-ctrl">' +
-        '<select class="face-select">' +
-          '<option value="none">적용면 선택</option>' +
-          '<option value="front">전면</option>' +
-          '<option value="back">후면</option>' +
-          '<option value="left">측면(좌)</option>' +
-          '<option value="right">측면(우)</option>' +
-          '<option value="bottom">밀면(착인면)</option>' +
-        '</select>' +
-        '<button class="apply-btn">3D 적용</button>' +
-        '<button class="remove-btn">삭제</button>' +
-      '</div>';
-    listEl.appendChild(item);
-
-    const sel = item.querySelector('.face-select');
-    const btn = item.querySelector('.apply-btn');
-    if(preFace){ sel.value = preFace; }
-    btn.addEventListener('click', () => {
-      const fk = sel.value;
-      if(fk === 'none'){ alert('적용할 면을 먼저 선택하세요.'); return; }
-      applyPhoto(fk, dataUrl, id);
-      document.querySelectorAll('.apply-btn.applied').forEach(b => {
-        if(b !== btn && applied[Object.keys(applied).find(k => applied[k] === b.dataset.pid)] !== b.dataset.pid) return;
-      });
-      btn.classList.add('applied');
-      btn.textContent = faceLabel[fk] + ' 적용됨';
-      btn.dataset.pid = id;
-    });
-    item.querySelector('.remove-btn').addEventListener('click', () => {
-      Object.keys(applied).forEach(k => { if(applied[k] === id) clearFace(k); });
-      item.remove();
-    });
-  }
-
-  function wire(dzId, listId){
-    const dz = document.getElementById(dzId);
-    const list = document.getElementById(listId);
-    const inPick = dz.querySelector('.in-pick');
-    const inCam  = dz.querySelector('.in-cam');
-    const srcLabel = inPick.dataset.src;
-    function afterGuided(url, faceKey){
-      addThumb(list, url, srcLabel, faceKey);
-    }
-    function handle(files){
-      Array.from(files).forEach(f => {
-        if(!f.type.startsWith('image/')) return;
-        const r = new FileReader();
-        r.onload = e => window.__guidedCapture.startCrop(e.target.result, 'front', afterGuided);
-        r.readAsDataURL(f);
-      });
-    }
-    inPick.addEventListener('change', e => { handle(e.target.files); inPick.value=''; });
-    inCam.addEventListener('change', e => { handle(e.target.files); inCam.value=''; });
-    dz.querySelector('[data-act="pick"]').addEventListener('click', e => { e.stopPropagation(); inPick.click(); });
-    dz.querySelector('[data-act="cam"]').addEventListener('click',  e => {
-      e.stopPropagation();
-      // 실시간 카메라 시도 → 차단 환경(content:// 등)이면 기본 카메라 앱으로 폴백
-      window.__guidedCapture.startCamera('front', afterGuided, () => inCam.click());
-    });
-    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-    dz.addEventListener('drop', e => {
-      e.preventDefault(); dz.classList.remove('over');
-      handle(e.dataTransfer.files);
-    });
-  }
-  wire('dzQC','listQC');
-  wire('dzVD','listVD');
-
-  /* ===== guided capture / crop ===== */
-  const FACE_RATIO = {front:96/210, back:96/210, left:56/210, right:56/210, bottom:96/56};
-  const modal   = document.getElementById('capModal');
-  const stageEl = document.getElementById('capStage');
-  const video   = document.getElementById('capVideo');
-  const cropImg = document.getElementById('cropImg');
-  const guide   = document.getElementById('guide');
-  const guideLabel = document.getElementById('guideLabel');
-  const faceSel = document.getElementById('capFaceSel');
-  const shutter = document.getElementById('shutterBtn');
-  const cropOk  = document.getElementById('cropConfirm');
-  const capHint = document.getElementById('capHint');
-  const capTitle= document.getElementById('capTitle');
-
-  let mode = null;              // 'camera' | 'crop'
-  let stream = null;
-  let doneCb = null;            // (dataUrl, faceKey) => void
-  let imgState = {scale:1, x:0, y:0, natW:0, natH:0};
-
-  function layoutGuide(){
-    const r = FACE_RATIO[faceSel.value];
-    const sw = stageEl.clientWidth, sh = stageEl.clientHeight;
-    let gw = sw * 0.7, gh = gw / r;
-    if(gh > sh * 0.72){ gh = sh * 0.72; gw = gh * r; }
-    guide.style.width = gw + 'px';
-    guide.style.height = gh + 'px';
-    guideLabel.textContent = faceSel.options[faceSel.selectedIndex].text.split(' ')[0] + ' 프레임에 맞춰 주세요';
-  }
-  faceSel.addEventListener('change', layoutGuide);
-  window.addEventListener('resize', () => { if(modal.classList.contains('open')) layoutGuide(); });
-
-  function guideRect(){
-    const s = stageEl.getBoundingClientRect();
-    const g = guide.getBoundingClientRect();
-    return {x:g.left - s.left, y:g.top - s.top, w:g.width, h:g.height, sw:s.width, sh:s.height};
-  }
-
-  function openModal(m, preFace){
-    mode = m;
-    if(preFace) faceSel.value = preFace;
-    modal.classList.add('open');
-    layoutGuide();
-    video.style.display   = m === 'camera' ? 'block' : 'none';
-    cropImg.style.display = m === 'crop'   ? 'block' : 'none';
-    shutter.style.display = m === 'camera' ? 'block' : 'none';
-    cropOk.style.display  = m === 'crop'   ? 'inline-block' : 'none';
-    capTitle.textContent  = m === 'camera' ? 'GUIDED CAPTURE · 촬영' : 'GUIDED CROP · 자르기';
-    capHint.textContent   = m === 'camera'
-      ? '노란 프레임 안에 해당 면이 꽉 차도록 맞춘 뒤 촬영 — 프레임 안쪽만 저장됩니다'
-      : '드래그로 이동 · 휠/핀치로 확대 — 프레임 안쪽만 저장됩니다';
-  }
-  function closeModal(){
-    modal.classList.remove('open');
-    if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
-    doneCb = null;
-  }
-  document.getElementById('capClose').addEventListener('click', closeModal);
-
-  /* --- camera mode --- */
-  async function startCamera(preFace, cb, fallbackFn){
-    doneCb = cb;
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      if(fallbackFn) fallbackFn(); return;
-    }
-    openModal('camera', preFace);
-    try{
-      stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
-      video.srcObject = stream;
-    }catch(err){
-      closeModal();
-      if(fallbackFn){ fallbackFn(); }
-      else alert('카메라를 열 수 없습니다: ' + err.message);
-    }
-  }
-  shutter.addEventListener('click', () => {
-    const gr = guideRect();
-    const vw = video.videoWidth, vh = video.videoHeight;
-    if(!vw){ return; }
-    // video is object-fit:cover on stage: compute scale & offsets
-    const scale = Math.max(gr.sw / vw, gr.sh / vh);
-    const dispW = vw * scale, dispH = vh * scale;
-    const offX = (gr.sw - dispW) / 2, offY = (gr.sh - dispH) / 2;
-    const sx = (gr.x - offX) / scale, sy = (gr.y - offY) / scale;
-    const sw = gr.w / scale, sh = gr.h / scale;
-    const c = document.createElement('canvas');
-    c.width = Math.round(sw); c.height = Math.round(sh);
-    c.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
-    const url = c.toDataURL('image/jpeg', 0.92);
-    const fk = faceSel.value;
-    const cb = doneCb;
-    closeModal();
-    if(cb) cb(url, fk);
-  });
-
-  /* --- crop mode (attached photos) --- */
-  function startCrop(dataUrl, preFace, cb){
-    doneCb = cb;
-    openModal('crop', preFace);
-    cropImg.onload = () => {
-      imgState.natW = cropImg.naturalWidth;
-      imgState.natH = cropImg.naturalHeight;
-      const gr = guideRect();
-      imgState.scale = Math.max(gr.w / imgState.natW, gr.h / imgState.natH);
-      imgState.x = 0; imgState.y = 0;
-      renderCrop();
-    };
-    cropImg.src = dataUrl;
-  }
-  function renderCrop(){
-    cropImg.style.width  = (imgState.natW * imgState.scale) + 'px';
-    cropImg.style.height = (imgState.natH * imgState.scale) + 'px';
-    cropImg.style.transform = 'translate(calc(-50% + ' + imgState.x + 'px), calc(-50% + ' + imgState.y + 'px))';
-  }
-  let dragging = false, lx = 0, ly = 0, pinchD = 0;
-  stageEl.addEventListener('mousedown', e => { if(mode!=='crop')return; dragging=true; lx=e.clientX; ly=e.clientY; });
-  window.addEventListener('mousemove', e => {
-    if(!dragging || mode!=='crop') return;
-    imgState.x += e.clientX - lx; imgState.y += e.clientY - ly;
-    lx=e.clientX; ly=e.clientY; renderCrop();
-  });
-  window.addEventListener('mouseup', () => dragging=false);
-  stageEl.addEventListener('wheel', e => {
-    if(mode!=='crop') return;
-    e.preventDefault();
-    imgState.scale *= (e.deltaY < 0 ? 1.08 : 0.92);
-    renderCrop();
-  }, {passive:false});
-  stageEl.addEventListener('touchstart', e => {
-    if(mode!=='crop') return;
-    if(e.touches.length===1){ dragging=true; lx=e.touches[0].clientX; ly=e.touches[0].clientY; }
-    else if(e.touches.length===2){
-      pinchD = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    }
-  }, {passive:true});
-  stageEl.addEventListener('touchmove', e => {
-    if(mode!=='crop') return;
-    e.preventDefault();
-    if(e.touches.length===1 && dragging){
-      imgState.x += e.touches[0].clientX - lx; imgState.y += e.touches[0].clientY - ly;
-      lx=e.touches[0].clientX; ly=e.touches[0].clientY;
-    } else if(e.touches.length===2){
-      const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-      if(pinchD) imgState.scale *= d / pinchD;
-      pinchD = d;
-    }
-    renderCrop();
-  }, {passive:false});
-  stageEl.addEventListener('touchend', () => { dragging=false; pinchD=0; });
-
-  cropOk.addEventListener('click', () => {
-    const gr = guideRect();
-    // image center at stage center + offset
-    const dispW = imgState.natW * imgState.scale, dispH = imgState.natH * imgState.scale;
-    const imgLeft = gr.sw/2 - dispW/2 + imgState.x;
-    const imgTop  = gr.sh/2 - dispH/2 + imgState.y;
-    const sx = (gr.x - imgLeft) / imgState.scale;
-    const sy = (gr.y - imgTop)  / imgState.scale;
-    const sw = gr.w / imgState.scale, sh = gr.h / imgState.scale;
-    const c = document.createElement('canvas');
-    c.width = Math.round(sw); c.height = Math.round(sh);
-    c.getContext('2d').drawImage(cropImg, sx, sy, sw, sh, 0, 0, c.width, c.height);
-    const url = c.toDataURL('image/jpeg', 0.92);
-    const fk = faceSel.value;
-    const cb = doneCb;
-    closeModal();
-    if(cb) cb(url, fk);
-  });
-
-  window.__guidedCapture = {startCamera, startCrop};
-})();
-
-/* ===== spec engine: editable fields, guide defaults, PDF intake ===== */
-(function(){
-  // 현장 포장 사양 관리 v1 (20250204) 기준 — 사양서 미기재 시 적용되는 기본값
+  /* ---------- guide defaults (현장 포장 사양 관리 v1, 2025-02-04) ---------- */
   const GUIDE = {
-    imprintPos:  {text:'밑면 빈 공간·작업 용이한 곳 (문안/바코드 有 시 정방향 기준)', rule:'착인 사양 관리 ① — 단상자 밀면 세부 위치 미공유 시'},
+    imprintPos:  {text:'밑면 빈 공간·작업 용이한 곳 (문안/바코드 有 시 정방향 기준)', rule:'착인 사양 관리 ① — 착인 세부 위치 미공유 시'},
     inboxPos:    {text:'문안(인쇄) 가리지 않는 지정 단면', rule:'라벨 사양 관리 ② — 부착위치 세부 미지정 시'},
     outboxPos:   {text:'문안(인쇄) 가리지 않는 지정 단면', rule:'라벨 사양 관리 ② — 부착위치 세부 미지정 시'},
     barcode:     {text:'바코드 이미지+숫자 포함, 바코드(숫자)는 숫자만', rule:'라벨 사양 관리 ② — 바코드 항목 기준'},
@@ -1133,184 +644,897 @@
     orientation: {text:'케이스 정면 맞춰 작업 (원형·튜브류는 동일 방향)', rule:'포장 공정 사항 ④ — 방향성 요청 없을 시'}
   };
   const BADGE = '현장포장사양관리 적용 › 확인필요';
+  const GUIDE_FIELD = {imprintPos:'imprintPos2', inboxPos:'inboxPos', outboxPos:'outboxPos',
+                       palletHeight:'palletHeight', palletBox:'palletBox', remainder:'remainderRule'};
 
-  const state = {};
-  document.querySelectorAll('.fv').forEach(el => {
-    const f = el.dataset.f;
-    state[f] = el.textContent.trim();
-    el.contentEditable = 'true';
-    el.spellcheck = false;
-    el.addEventListener('blur', () => setField(f, el.textContent.trim(), el));
-    el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); el.blur(); } });
-  });
+  /* ---------- default seed values ---------- */
+  const DEFAULTS = {
+    abbr:'EGC-JMFCC', matno:'10116030', customer:'(주)이지함화장품', custcode:'DNJMFCC01',
+    approved:'2026-04-08', owner:'윤가영',
+    nameKr:'닥터슈라클 제주말차 클레이 마스크 클렌저', nameEn:'Dr.Ceuracle JEJU MATCHA CLAY MASK CLEANSER',
+    abbr2:'EGC-JMFCC', volume:'120ML', fillVol:'120ML', setType:'단품', lot:'KKM 기준', lot2:'KKM 기준',
+    structure:'튜브 + 단상자',
+    cutType:'해당없음', cutLen:'—',
+    imprintPos:'밀면', imprintPos2:'밀면 (상자 바닥면)', imprintColor:'검정색', imprintColor2:'검정색',
+    imprintMethod:'인쇄(착인)', imprintNote:'—',
+    imprint1:'제조번호 — 00000', imprint2:'사용기한까지 — YYYYMMDD까지',
+    components:'—',
+    inboxPos:'해당없음', inboxQty:'-', inboxRem:'해당없음',
+    outboxPos:'단측', outboxQty:'20', outboxRem:'가능', taping:'일자',
+    palletType:'수출용 (검정색)', palletHeight:'160cm 이하', palletBox:'확인 필요', palletTier:'확인 필요',
+    palletLabel:'N (미부착)', remainderRule:'—', note:'—'
+  };
+  Object.keys(DEFAULTS).forEach(k => { if(!(k in state)) state[k] = DEFAULTS[k]; });
 
-  // paired fields (same value shown in two places)
+  /* =====================================================================
+     TYPE CONFIG
+     ===================================================================== */
+  const TYPES = {
+    tube: {
+      label:'튜브', icon:'🧴', family:'single',
+      stageLabel:'TUBE · 튜브 (원통)',
+      viewerTitle:'튜브 3D 렌더링 · 실링 압인 확인',
+      viewerNote:'드래그로 회전 · 버튼으로 실링부(압인면) 바로보기',
+      imprintFace:'seal',
+      faces:[
+        {key:'front', label:'전면(바디)', ratio:60/150},
+        {key:'seal',  label:'실링부(압인)', ratio:70/40}
+      ],
+      views:[
+        {view:'front', label:'전면', x:-8, y:0},
+        {view:'back',  label:'후면', x:-8, y:180},
+        {view:'seal',  label:'실링부(압인)', x:24, y:0, hot:true}
+      ],
+      grid:[
+        {k:'제품명 (국문)', f:'nameKr', hi:true},
+        {k:'제품명 (영문)', f:'nameEn'},
+        {k:'제품약호', f:'abbr2', mono:true, hi:true},
+        {k:'충전용량', f:'fillVol'},
+        {k:'단품/세트', f:'setType'},
+        {k:'컷팅유형', f:'cutType', hi:true},
+        {k:'컷팅후 완제품길이(mm)', f:'cutLen'},
+        {k:'로트방식', f:'lot'},
+        {k:'용기 착인 (위치·방식)', imprint:true, hi:true}
+      ],
+      structure:'본 품목은 <b>튜브(충전 반제품)</b>입니다. 사양서의 "용기 착인"은 튜브 <b>실링부(꼬리 압착부)</b>에 제조번호·사용기한을 <b>앞·뒤로 압인</b>한다는 기준입니다. 압인은 무색 엠보싱이라 색상이 <b>N/A</b>인 경우가 많습니다.',
+      imprintRows:[
+        {k:'확인사양 ①', f:'imprint1', mono:true},
+        {k:'확인사양 ②', f:'imprint2', mono:true},
+        {k:'착인 방식', f:'imprintMethod'},
+        {k:'착인 위치', f:'imprintPos2', gslot:true},
+        {k:'착인 색상', f:'imprintColor2'},
+        {k:'로트방식', f:'lot2'}
+      ],
+      checkpoints:'검수 포인트: ① 컷팅유형(일자/R)이 실링부 형상과 일치하는지 ② 압인이 실링부 <b>앞·뒤</b> 모두 찍혔는지 ③ 압인 문자열 서식(제조번호·YYYYMMDD까지) ④ 압인 깊이·판독성(무색이라 각도별 확인).',
+      showComponents:false
+    },
+    container: {
+      label:'용기/쿠션', icon:'🫙', family:'single',
+      stageLabel:'CONTAINER · 용기/쿠션 (원형)',
+      viewerTitle:'용기 3D 렌더링 · 후면하단 착인 확인',
+      viewerNote:'드래그로 회전 · 버튼으로 밑면(착인면) 바로보기',
+      imprintFace:'bottom',
+      faces:[
+        {key:'top',    label:'상단(뚜껑)', ratio:1},
+        {key:'front',  label:'전면(측면)', ratio:140/48},
+        {key:'bottom', label:'밑면(착인)', ratio:1}
+      ],
+      views:[
+        {view:'top',    label:'상단', x:78, y:0},
+        {view:'front',  label:'전면', x:-6, y:0},
+        {view:'bottom', label:'밑면(착인)', x:-82, y:0, hot:true}
+      ],
+      grid:[
+        {k:'제품명 (국문)', f:'nameKr', hi:true},
+        {k:'제품명 (영문)', f:'nameEn'},
+        {k:'제품약호', f:'abbr2', mono:true, hi:true},
+        {k:'충전용량', f:'fillVol'},
+        {k:'단품/세트', f:'setType'},
+        {k:'컷팅유형', f:'cutType'},
+        {k:'로트방식', f:'lot'},
+        {k:'용기 착인 (위치·색상)', imprint:true, hi:true},
+        {k:'착인 비고', f:'imprintNote', wide:true}
+      ],
+      structure:'본 품목은 <b>용기/쿠션(충전 반제품)</b>입니다. 사양서의 "용기 착인"은 용기 <b>후면 하단(로고 우측면 등 지정 위치)</b>에 제조번호·사용기한을 <b>검정색으로 착인</b>한다는 기준입니다.',
+      imprintRows:[
+        {k:'확인사양 ①', f:'imprint1', mono:true},
+        {k:'확인사양 ②', f:'imprint2', mono:true},
+        {k:'착인 위치', f:'imprintPos2', gslot:true},
+        {k:'착인 색상', f:'imprintColor2'},
+        {k:'착인 비고', f:'imprintNote'},
+        {k:'로트방식', f:'lot2'}
+      ],
+      checkpoints:'검수 포인트: ① 착인이 지정 위치(후면 하단·로고 우측 등)에 있는지 ② 색상(검정 등) 일치·번짐 ③ 곡면 착인의 수평·판독성 ④ 사용기한 서식(YYYYMMDD까지).',
+      showComponents:false
+    },
+    carton: {
+      label:'단상자', icon:'📦', family:'packed',
+      stageLabel:'UNIT CARTON · 단상자',
+      viewerTitle:'단상자 3D 렌더링 · 착인 위치 확인',
+      viewerNote:'드래그로 회전 · 버튼으로 밀면(착인면) 바로보기',
+      imprintFace:'bottom',
+      faces:[
+        {key:'front',  label:'전면', ratio:96/210},
+        {key:'back',   label:'후면', ratio:96/210},
+        {key:'left',   label:'측면(좌)', ratio:56/210},
+        {key:'right',  label:'측면(우)', ratio:56/210},
+        {key:'top',    label:'상면', ratio:96/56},
+        {key:'bottom', label:'밀면(착인)', ratio:96/56}
+      ],
+      views:[
+        {view:'front',  label:'전면', x:-8, y:0},
+        {view:'back',   label:'후면', x:-8, y:180},
+        {view:'side',   label:'측면', x:-8, y:90},
+        {view:'bottom', label:'밀면(착인면)', x:82, y:20, hot:true}
+      ],
+      grid:[
+        {k:'제품명 (국문)', f:'nameKr', hi:true},
+        {k:'제품명 (영문)', f:'nameEn'},
+        {k:'제품약호', f:'abbr2', mono:true, hi:true},
+        {k:'표시용량', f:'volume'},
+        {k:'단품/세트', f:'setType'},
+        {k:'로트방식', f:'lot'},
+        {k:'포장 구조', f:'structure', hi:true},
+        {k:'단상자 착인 (위치·색상)', imprint:true, hi:true}
+      ],
+      structure:'본 품목은 <b>튜브/용기가 단상자에 포장되는 구조</b>입니다. 사양서의 "단상자 착인" 항목은 상자 <b>밀면(바닥면)</b>에 제조번호·사용기한을 <b>검정색으로 착인</b>한다는 기준입니다.',
+      imprintRows:[
+        {k:'확인사양 ①', f:'imprint1', mono:true},
+        {k:'확인사양 ②', f:'imprint2', mono:true},
+        {k:'착인 위치', f:'imprintPos2', gslot:true},
+        {k:'착인 색상', f:'imprintColor2'},
+        {k:'로트방식', f:'lot2'}
+      ],
+      checkpoints:'검수 포인트: ① 착인이 밀면에 있는지(측면·상면 오착인 여부) ② 검정 착인의 선명도/번짐 ③ 로트번호 체계가 KKM 기준과 일치하는지 ④ 사용기한 서식이 YYYYMMDD + "까지" 문구인지.',
+      showComponents:false
+    },
+    set: {
+      label:'셋트 케이스', icon:'🎁', family:'packed',
+      stageLabel:'SET CASE · 셋트 케이스',
+      viewerTitle:'셋트 케이스 3D 렌더링 · 구성품·착인 확인',
+      viewerNote:'드래그로 회전 · 버튼으로 밀면(착인면) 바로보기',
+      imprintFace:'bottom',
+      faces:[
+        {key:'front',  label:'전면', ratio:156/130},
+        {key:'back',   label:'후면', ratio:156/130},
+        {key:'left',   label:'측면(좌)', ratio:96/130},
+        {key:'right',  label:'측면(우)', ratio:96/130},
+        {key:'top',    label:'상면(구성)', ratio:156/96},
+        {key:'bottom', label:'밀면(착인)', ratio:156/96}
+      ],
+      views:[
+        {view:'front',  label:'전면', x:-8, y:0},
+        {view:'top',    label:'상면(구성)', x:74, y:-8},
+        {view:'side',   label:'측면', x:-8, y:90},
+        {view:'bottom', label:'밀면(착인면)', x:82, y:20, hot:true}
+      ],
+      grid:[
+        {k:'제품명 (국문)', f:'nameKr', hi:true},
+        {k:'제품명 (영문)', f:'nameEn'},
+        {k:'제품약호', f:'abbr2', mono:true, hi:true},
+        {k:'표시용량', f:'volume'},
+        {k:'단품/세트', f:'setType'},
+        {k:'로트방식', f:'lot'},
+        {k:'포장 구조', f:'structure', hi:true},
+        {k:'셋트 착인 (위치·색상)', imprint:true, hi:true},
+        {k:'구성품', f:'components', wide:true}
+      ],
+      structure:'본 품목은 <b>셋트 케이스(여러 구성품 기획세트)</b>입니다. 착인은 케이스 <b>밀면</b>에 제조번호·사용기한을 <b>검정색으로 착인</b>하며, <b>사용기한이 가장 짧은 구성품 기준</b>으로 적용합니다.',
+      imprintRows:[
+        {k:'확인사양 ①', f:'imprint1', mono:true},
+        {k:'확인사양 ②', f:'imprint2', mono:true},
+        {k:'착인 위치', f:'imprintPos2', gslot:true},
+        {k:'착인 색상', f:'imprintColor2'},
+        {k:'로트방식', f:'lot2'}
+      ],
+      checkpoints:'검수 포인트: ① 구성품 종류·개입수가 사양서와 일치하는지 ② 착인 기준이 <b>짧은 사용기한 품목</b> 기준인지 ③ 세트 라벨(제품코드·바코드·물류바코드) 필수항목 누락 여부 ④ 밀면 착인 위치.',
+      showComponents:true
+    }
+  };
+
+  /* =====================================================================
+     MODEL BUILDERS  (each returns a .model3d element with data-face faces)
+     ===================================================================== */
+  function el(cls, html){ const d=document.createElement('div'); if(cls)d.className=cls; if(html!=null)d.innerHTML=html; return d; }
+
+  function buildCarton(){
+    const m = el('model3d m-carton');
+    m.dataset.type = 'carton';
+    m.innerHTML =
+      '<div class="face photoface f-front" data-face="front">' +
+        '<div class="fb-brand">Dr.Ceuracle</div>' +
+        '<div class="fb-tag">Curing skin, Caring beauty</div>' +
+        '<div class="fb-rule"></div>' +
+        '<div class="fb-name" data-bind-html="nameEnBox"></div>' +
+        '<div class="fb-kr" data-bind="nameKrShort"></div>' +
+        '<div class="fb-swatch"></div>' +
+        '<div class="fb-claim">UNIT CARTON</div>' +
+        '<div class="fb-vol" data-bind="volume"></div>' +
+      '</div>' +
+      '<div class="face photoface f-back" data-face="back">' +
+        '<div class="bk-line"></div><div class="bk-line s"></div><div class="bk-line"></div>' +
+        '<div class="bk-line s"></div><div class="bk-line"></div><div class="bk-line s"></div>' +
+        '<div class="bk-bar"></div><div class="bk-cap">BARCODE</div></div>' +
+      '<div class="face photoface f-left" data-face="left"><div class="side-txt" data-bind="nameEn"></div></div>' +
+      '<div class="face photoface f-right" data-face="right"><div class="side-txt" data-bind="sideRight"></div></div>' +
+      '<div class="face photoface f-top" data-face="top"><div class="top-logo">Dr.C</div></div>' +
+      '<div class="face photoface f-bottom" data-face="bottom">' +
+        '<div class="imprint-tag">밀면 착인</div>' +
+        '<div class="imprint" data-bind-html="imprintBox"></div></div>';
+    return m;
+  }
+
+  function buildSet(){
+    const m = el('model3d m-set');
+    m.dataset.type = 'set';
+    m.innerHTML =
+      '<div class="face photoface f-front" data-face="front">' +
+        '<div class="fb-brand" data-bind="brandShort">SET</div>' +
+        '<div class="fb-tag">SPECIAL SET</div>' +
+        '<div class="fb-rule"></div>' +
+        '<div class="fb-name" data-bind-html="nameEnBox"></div>' +
+        '<div class="fb-kr" data-bind="nameKrShort"></div>' +
+        '<div class="fb-claim">GIFT / KIT</div>' +
+        '<div class="fb-vol" data-bind="volume"></div>' +
+      '</div>' +
+      '<div class="face photoface f-back" data-face="back">' +
+        '<div class="bk-line"></div><div class="bk-line s"></div><div class="bk-line"></div>' +
+        '<div class="bk-bar"></div><div class="bk-cap">물류바코드</div></div>' +
+      '<div class="face photoface f-left" data-face="left"><div class="side-txt" data-bind="nameEn"></div></div>' +
+      '<div class="face photoface f-right" data-face="right"><div class="side-txt" data-bind="sideRight"></div></div>' +
+      '<div class="face photoface f-top" data-face="top"><div class="set-tray" data-bind-html="setTray"></div></div>' +
+      '<div class="face photoface f-bottom" data-face="bottom">' +
+        '<div class="imprint-tag">밀면 착인</div>' +
+        '<div class="imprint" data-bind-html="imprintBox"></div></div>';
+    return m;
+  }
+
+  function buildCylSegments(container, opt){
+    // opt: {n, r, h, segClass, extraStyle}
+    const circ = 2*Math.PI*opt.r;
+    const segW = Math.ceil(circ/opt.n) + 2;
+    for(let i=0;i<opt.n;i++){
+      const a = (360/opt.n)*i;
+      const s = el('cyl-seg'+(opt.segClass?' '+opt.segClass:''));
+      s.style.width = segW+'px';
+      s.style.height = opt.h+'px';
+      s.style.transform = 'translate(-50%,-50%) rotateY('+a+'deg) translateZ('+opt.r+'px)';
+      container.appendChild(s);
+    }
+  }
+
+  function buildTube(){
+    const m = el('model3d m-tube');
+    m.dataset.type = 'tube';
+    const r=34, h=210, capH=20, finH=48;
+    buildCylSegments(m, {n:24, r:r, h:h});
+    // cap (top)
+    const cap = el('cyl-cap tube-cap');
+    cap.style.width=(2*r)+'px'; cap.style.height=capH+'px';
+    cap.style.borderRadius = (r)+'px/'+ (capH/2) +'px';
+    cap.style.transform='translate(-50%,-50%) translateY('+(-(h/2)-capH/2)+'px)';
+    m.appendChild(cap);
+    // front billboard (photo target)
+    const front = el('photoface tube-front','');
+    front.dataset.face='front';
+    front.style.cssText='width:'+(2*r*0.82)+'px;height:'+(h*0.66)+'px;margin-left:'+(-(2*r*0.82)/2)+'px;margin-top:'+(-(h*0.66)/2)+'px;background:transparent;border:1px dashed rgba(0,0,0,.12);transform:translateZ('+(r+0.5)+'px);';
+    const band = el('tube-body-band');
+    band.style.cssText='width:'+(2*r*0.9)+'px;height:'+(h*0.5)+'px;margin-left:'+(-(2*r*0.9)/2)+'px;margin-top:'+(-(h*0.5)/2)+'px;transform:translateZ('+(r+1)+'px);';
+    band.innerHTML='<div class="tbn" data-bind="brandShort">Dr.C</div><div class="tbn" data-bind-html="tubeName" style="font-size:7px;color:#4f7a4a;"></div><div class="tbv" data-bind="fillVol"></div>';
+    m.appendChild(front); m.appendChild(band);
+    // seal fin (bottom) — imprint face
+    const seal = el('seal photoface');
+    seal.dataset.face='seal';
+    seal.style.cssText='width:'+(2*r*0.94)+'px;height:'+finH+'px;margin-left:'+(-(2*r*0.94)/2)+'px;margin-top:'+(-finH/2)+'px;transform:translateY('+((h/2)+finH/2-3)+'px) translateZ(0.5px);';
+    seal.innerHTML='<div class="seal-crimp"></div><div class="seal-tag">실링 압인</div><div class="imprint" data-bind-html="imprintBox" style="font-size:7px;"></div>';
+    m.appendChild(seal);
+    m._seal = seal;
+    return m;
+  }
+
+  function buildContainer(){
+    const m = el('model3d m-container');
+    m.dataset.type = 'container';
+    const r=70, h=46;
+    buildCylSegments(m, {n:30, r:r, h:h, segClass:'ctn-seg'});
+    m.querySelectorAll('.cyl-seg').forEach(s=>{ s.style.backgroundColor='#eceadf'; });
+    // lid (top)
+    const lid = el('cyl-cap puck-lid photoface');
+    lid.dataset.face='top';
+    lid.style.width=(2*r)+'px'; lid.style.height=(2*r)+'px';
+    lid.style.transform='translate(-50%,-50%) translateY('+(-h/2)+'px) rotateX(90deg)';
+    lid.innerHTML='<div class="lid-brand" data-bind-html="lidBrand">Dr.Ceuracle</div>';
+    m.appendChild(lid);
+    // base (bottom) — imprint face
+    const base = el('cyl-cap puck-base photoface');
+    base.dataset.face='bottom';
+    base.style.width=(2*r)+'px'; base.style.height=(2*r)+'px';
+    base.style.transform='translate(-50%,-50%) translateY('+(h/2)+'px) rotateX(-90deg)';
+    base.innerHTML='<div class="base-ring"></div><div class="base-recycle">&#9851;</div>'+
+      '<div class="base-imprint"><span class="btag">후면하단 착인</span><span data-bind-html="imprintBox">제조번호 00000<br>EXP YYYYMMDD까지</span></div>';
+    m.appendChild(base);
+    // front billboard
+    const front = el('photoface','');
+    front.dataset.face='front';
+    front.style.cssText='width:'+(2*r*0.9)+'px;height:'+(h*0.8)+'px;margin-left:'+(-(2*r*0.9)/2)+'px;margin-top:'+(-(h*0.8)/2)+'px;background:transparent;border:1px dashed rgba(0,0,0,.10);transform:translateZ('+(r+0.5)+'px);display:flex;align-items:center;justify-content:center;';
+    front.innerHTML='<div class="tbv" data-bind="fillVol" style="color:#5c6b58;"></div>';
+    m.appendChild(front);
+    return m;
+  }
+
+  const MODELS = {
+    carton: buildCarton(), set: buildSet(), tube: buildTube(), container: buildContainer()
+  };
+  const modelHold = document.getElementById('modelHold');
+  Object.values(MODELS).forEach(m => modelHold.appendChild(m));
+
+  /* =====================================================================
+     FIELD ENGINE  (editable .fv, data-bind, guide badges)
+     ===================================================================== */
   const PAIRS = {abbr:['abbr2'], abbr2:['abbr'], lot:['lot2'], lot2:['lot'],
                  imprintPos:['imprintPos2'], imprintPos2:['imprintPos'],
-                 imprintColor:['imprintColor2'], imprintColor2:['imprintColor']};
+                 imprintColor:['imprintColor2'], imprintColor2:['imprintColor'],
+                 fillVol:['volume'], volume:['fillVol']};
+
+  function initFields(root){
+    (root||document).querySelectorAll('.fv').forEach(elm => {
+      const f = elm.dataset.f;
+      if(!(f in state)) state[f] = elm.textContent.trim();
+      else elm.textContent = state[f];
+      if(boundEls.has(elm)) return;
+      boundEls.add(elm);
+      elm.contentEditable = 'true';
+      elm.spellcheck = false;
+      elm.addEventListener('blur', () => setField(f, elm.textContent.trim(), elm));
+      elm.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); elm.blur(); } });
+    });
+  }
 
   function setField(f, val, srcEl){
     state[f] = val;
-    document.querySelectorAll('.fv[data-f="'+f+'"]').forEach(el => { if(el!==srcEl) el.textContent = val; });
+    document.querySelectorAll('.fv[data-f="'+f+'"]').forEach(elm => { if(elm!==srcEl) elm.textContent = val; });
     (PAIRS[f]||[]).forEach(pf => {
       state[pf] = val;
-      document.querySelectorAll('.fv[data-f="'+pf+'"]').forEach(el => el.textContent = val);
+      document.querySelectorAll('.fv[data-f="'+pf+'"]').forEach(elm => elm.textContent = val);
     });
-    syncBinds();
-    refreshGuides();
+    syncBinds(); refreshGuides();
   }
-
   function get(f){ return state[f] || ''; }
-  window.__spec = {get, set:setField};
+
+  function computed(name){
+    const en = get('nameEn');
+    switch(name){
+      case 'nameKrShort': return get('nameKr').replace(/^(닥터슈라클|닥터엘시아|닥터아임|센텔리안24)\s*/,'') || get('nameKr');
+      case 'brandShort': {
+        const kr = get('nameKr');
+        if(/닥터슈라클|Ceuracle/i.test(kr+en)) return 'Dr.Ceuracle';
+        if(/닥터엘시아|Althea/i.test(kr+en)) return 'Dr.Althea';
+        if(/센텔리안/.test(kr)) return '센텔리안24';
+        return (en.split(' ')[0]||'BRAND');
+      }
+      case 'sideRight': return get('brandShort2')|| (computed('brandShort')+' · '+get('fillVol'));
+      case 'tubeName': return computed('nameKrShort');
+      case 'lidBrand': return computed('brandShort');
+      case 'nameEnBox': {
+        if(!en) return '';
+        const parts = en.replace(/^Dr\.?\s?(Ceuracle|Althea)\s*/i,'').split(' ').filter(Boolean);
+        if(parts.length>=2){
+          const head = parts.slice(0,Math.ceil(parts.length/2)).join(' ');
+          const tail = parts.slice(Math.ceil(parts.length/2)).join(' ');
+          return '<em>'+esc(head)+'</em><br>'+esc(tail);
+        }
+        return esc(en);
+      }
+      case 'imprintBox': return esc(get('imprint1').replace(/^.*?—\s*/,'')||'00000')+'<br>'+esc(get('imprint2').replace(/^.*?—\s*/,'')||'YYYYMMDD까지');
+      case 'setTray': {
+        const comps = parseComponents(get('components'));
+        if(!comps.length) return '<div class="set-slot">구성품<br>미기재</div>';
+        return comps.slice(0,6).map(c=>'<div class="set-slot">'+esc(c)+'</div>').join('');
+      }
+      default: return get(name);
+    }
+  }
+  function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  function parseComponents(raw){
+    if(!raw || raw==='—') return [];
+    // e.g. "345 릴리프크림50ML(+10ML*2EA+튜브링거기획세트)" or "본품50ML + 미니10ML*2 + 튜브링거"
+    const inner = (raw.match(/\(([^)]*)\)/)||[])[1] || raw;
+    const head = raw.split('(')[0].trim();
+    let parts = inner.split(/[+,·]/).map(s=>s.trim()).filter(Boolean);
+    if(head && !/^\s*$/.test(head)) parts.unshift(head);
+    return parts.filter(Boolean);
+  }
 
   function syncBinds(){
-    document.querySelectorAll('[data-bind]').forEach(el => {
-      const v = get(el.dataset.bind);
-      if(v) el.textContent = v;
+    document.querySelectorAll('[data-bind]').forEach(elm => {
+      const v = computed(elm.dataset.bind);
+      if(v!=null && v!=='') elm.textContent = v;
     });
-    // carton front: english name split lines
-    const en = get('nameEn');
-    document.querySelectorAll('[data-bind-html="nameEnBox"]').forEach(el => {
-      if(!en) return;
-      const parts = en.replace(/^Dr\.?\s?Ceuracle\s*/i,'').split(' ');
-      if(parts.length >= 2){
-        const head = parts.slice(0, Math.ceil(parts.length/2)).join(' ');
-        const tail = parts.slice(Math.ceil(parts.length/2)).join(' ');
-        el.innerHTML = '<em>' + head + '</em><br>' + tail;
-      } else el.textContent = en;
+    document.querySelectorAll('[data-bind-html]').forEach(elm => {
+      const v = computed(elm.dataset.bindHtml);
+      if(v!=null) elm.innerHTML = v;
     });
-    const kr = get('nameKr');
-    document.querySelectorAll('[data-bind="nameKrShort"]').forEach(el => {
-      if(kr) el.textContent = kr.replace(/^닥터슈라클\s*/,'');
-    });
+    reflectCutType();
+    if(document.getElementById('compBody')) renderComponents();
   }
 
-  const EMPTYISH = v => !v || v === '—' || v === '확인 필요' || v === '0' || /^미기재/.test(v);
+  // 컷팅유형(R컷팅=실링부 라운드, 일자컷팅/해당없음=직선)을 튜브 실링부 형상에 반영
+  function reflectCutType(){
+    const seal = MODELS.tube && MODELS.tube._seal;
+    if(!seal) return;
+    seal.classList.toggle('rcut', /R\s*컷팅|라운드/i.test(get('cutType')));
+  }
 
-  // which fields drive which guide slots
-  const GUIDE_FIELD = {imprintPos:'imprintPos', inboxPos:'inboxPos', outboxPos:'outboxPos',
-                       palletHeight:'palletHeight', palletBox:'palletBox', remainder:'remainderRule'};
-
+  const EMPTYISH = v => !v || v==='—' || v==='확인 필요' || v==='0' || /^미기재/.test(v);
   function refreshGuides(){
     document.querySelectorAll('.gslot').forEach(slot => {
       const g = slot.dataset.g;
+      if(!GUIDE[g]) return;
       const drivingField = GUIDE_FIELD[g];
-      slot.innerHTML = '';
-      // barcode / boxLabelLot are always guide-informational; others only when field empty-ish
-      const alwaysOn = (g === 'barcode' || g === 'boxLabelLot');
+      slot.innerHTML='';
+      const alwaysOn = (g==='barcode' || g==='boxLabelLot');
       const fieldVal = drivingField ? get(drivingField) : '';
       if(alwaysOn || EMPTYISH(fieldVal)){
         const b = document.createElement('span');
-        b.className = 'gbadge';
-        b.textContent = BADGE;
-        b.title = '[' + GUIDE[g].rule + ']\n→ ' + GUIDE[g].text;
+        b.className='gbadge'; b.textContent=BADGE;
+        b.title='['+GUIDE[g].rule+']\n→ '+GUIDE[g].text;
         slot.appendChild(b);
-        if(!alwaysOn && drivingField && EMPTYISH(fieldVal)){
-          // show the guide default value inline
-          document.querySelectorAll('.fv[data-f="'+drivingField+'"]').forEach(el => {
-            if(EMPTYISH(el.textContent.trim())){
-              el.textContent = GUIDE[g].text;
-              el.classList.add('empty');
-              state[drivingField] = GUIDE[g].text;
-            }
-          });
-        }
       }
     });
   }
-  syncBinds();
-  refreshGuides();
 
-  /* ---- PDF / image intake ---- */
-  const drop = document.getElementById('siDrop');
-  const input = document.getElementById('siInput');
-  const status = document.getElementById('siStatus');
+  /* =====================================================================
+     RENDER SECTION 01 (grid) + imprint panel + controls per type
+     ===================================================================== */
+  const specGrid = document.getElementById('specGrid');
+  const imprintPanel = document.getElementById('imprintPanel');
+  const ctrlRail = document.getElementById('ctrlRail');
 
-  drop.addEventListener('click', () => input.click());
-  const attachBtn = document.getElementById('siAttachBtn');
-  if(attachBtn) attachBtn.addEventListener('click', e => { e.stopPropagation(); input.click(); });
-  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
-  input.addEventListener('change', e => { handleFile(e.target.files[0]); input.value=''; });
+  function renderGrid(cfg){
+    specGrid.innerHTML='';
+    cfg.grid.forEach(cell => {
+      const c = el('spec-cell'+(cell.hi?' hi':'')+(cell.wide?' wide':''));
+      if(cell.imprint){
+        c.innerHTML = '<div class="k">'+esc(cell.k)+'</div>'+
+          '<div class="v"><span class="fv" data-f="imprintPos" data-ph="위치"></span> · '+
+          '<span class="fv" data-f="imprintColor" data-ph="색상"></span>'+
+          '<span class="gslot" data-g="imprintPos"></span></div>';
+      } else {
+        c.innerHTML = '<div class="k">'+esc(cell.k)+'</div>'+
+          '<div class="v'+(cell.mono?' mono':'')+' fv" data-f="'+cell.f+'" data-ph="'+esc(cell.k)+'"></div>';
+      }
+      specGrid.appendChild(c);
+    });
+  }
 
-  function setStatus(html){ status.innerHTML = html; }
+  function renderImprintPanel(cfg){
+    let html = '<div class="structure-chip"><div class="icon">'+cfg.icon+'</div><div class="txt">'+cfg.structure+'</div></div>';
+    html += '<div class="ip-card"><div class="ip-head"><span>착인 사양 (사양서 기준)</span><span>IMPRINT SPEC</span></div><div class="ip-body">';
+    cfg.imprintRows.forEach(r=>{
+      html += '<div class="ip-row"><span class="k">'+esc(r.k)+'</span><span class="v'+(r.mono?' mono':'')+'">'+
+        '<span class="fv" data-f="'+r.f+'" data-ph="'+esc(r.k)+'"></span>'+
+        (r.gslot?'<span class="gslot" data-g="imprintPos"></span>':'')+'</span></div>';
+    });
+    html += '</div></div>';
+    if(cfg.showComponents){
+      html += '<div class="comp-card"><div class="comp-head"><span>구성품 (SET COMPONENTS)</span><span id="compCount"></span></div><div class="comp-body" id="compBody"></div></div>';
+    }
+    html += '<div class="ip-note">'+cfg.checkpoints+'</div>';
+    imprintPanel.innerHTML = html;
+    if(cfg.showComponents) renderComponents();
+  }
+
+  function renderComponents(){
+    const body = document.getElementById('compBody');
+    const cnt = document.getElementById('compCount');
+    if(!body) return;
+    const comps = parseComponents(get('components'));
+    cnt.textContent = comps.length ? comps.length+' 종' : '미기재';
+    body.innerHTML = comps.length
+      ? comps.map((c,i)=>'<div class="comp-item"><span class="cn">'+(i+1)+'</span><span>'+esc(c)+'</span></div>').join('')
+      : '<div class="comp-item" style="border:none;color:var(--ink-soft);">구성품 미기재 — 제품명/구성품 필드에 입력하세요.</div>';
+  }
+
+  function renderControls(cfg){
+    ctrlRail.innerHTML='';
+    cfg.views.forEach(v=>{
+      const b = el('ctrl-btn'+(v.hot?' hot':''));
+      b.textContent = v.label;
+      b.dataset.view = v.view;
+      ctrlRail.appendChild(b);
+    });
+    const spin = el('ctrl-btn'); spin.id='spinBtn'; spin.textContent='자동회전';
+    ctrlRail.appendChild(spin);
+    wireControls(cfg);
+  }
+
+  /* =====================================================================
+     3D ROTATION CONTROLLER (operates on active model)
+     ===================================================================== */
+  const stage = document.getElementById('stage');
+  let rx=-14, ry=28, dragging=false, lx=0, ly=0, spinning=false, rafId=null;
+  let viewMap = {};
+
+  function activeModel(){ return modelHold.querySelector('.model3d.active'); }
+  function apply(){ const m=activeModel(); if(m) m.style.transform='rotateX('+rx+'deg) rotateY('+ry+'deg)'; }
+
+  function startDrag(x,y){ dragging=true; lx=x; ly=y; const m=activeModel(); if(m)m.classList.remove('snap'); stopSpin(); }
+  function moveDrag(x,y){ if(!dragging)return; ry+=(x-lx)*0.45; rx-=(y-ly)*0.45; rx=Math.max(-110,Math.min(110,rx)); lx=x; ly=y; apply(); }
+  function endDrag(){ dragging=false; }
+
+  stage.addEventListener('mousedown', e=>startDrag(e.clientX,e.clientY));
+  window.addEventListener('mousemove', e=>moveDrag(e.clientX,e.clientY));
+  window.addEventListener('mouseup', endDrag);
+  stage.addEventListener('touchstart', e=>{ const t=e.touches[0]; startDrag(t.clientX,t.clientY); }, {passive:true});
+  stage.addEventListener('touchmove', e=>{ const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
+  stage.addEventListener('touchend', endDrag);
+
+  function spin(){ ry+=0.5; apply(); rafId=requestAnimationFrame(spin); }
+  function stopSpin(){ spinning=false; const b=document.getElementById('spinBtn'); if(b)b.classList.remove('spin-on'); if(rafId)cancelAnimationFrame(rafId); }
+
+  function wireControls(cfg){
+    viewMap = {};
+    cfg.views.forEach(v=>viewMap[v.view]={x:v.x,y:v.y});
+    ctrlRail.querySelectorAll('.ctrl-btn[data-view]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        stopSpin();
+        const v = viewMap[btn.dataset.view]; if(!v) return;
+        const targetY = v.y + Math.round((ry - v.y)/360)*360;
+        const m=activeModel(); if(m)m.classList.add('snap');
+        rx=v.x; ry=targetY; apply();
+      });
+    });
+    const spinBtn = document.getElementById('spinBtn');
+    spinBtn.addEventListener('click', ()=>{
+      if(spinning){ stopSpin(); return; }
+      spinning=true; const m=activeModel(); if(m)m.classList.remove('snap');
+      spinBtn.classList.add('spin-on'); spin();
+    });
+  }
+
+  /* =====================================================================
+     PHOTO INTAKE (generalized to active model faces)
+     ===================================================================== */
+  const faceLabelMap = {}; // key->label for current type
+  let seq = 0;
+
+  function currentFaces(){ return TYPES[currentType].faces; }
+  function faceEl(key){ const m=activeModel(); return m ? m.querySelector('[data-face="'+key+'"]') : null; }
+
+  function applyPhoto(faceKey, dataUrl, itemId, appliedMap){
+    Object.keys(appliedMap).forEach(k=>{ if(appliedMap[k]===itemId) clearFace(k, appliedMap); });
+    if(faceKey==='none') return;
+    if(appliedMap[faceKey]) clearFace(faceKey, appliedMap);
+    const face = faceEl(faceKey); if(!face) return;
+    face.classList.add('has-photo');
+    const fill = el('photo-fill'); fill.style.backgroundImage='url('+dataUrl+')';
+    face.appendChild(fill);
+    if(faceKey === TYPES[currentType].imprintFace){
+      const ov = el('imprint-overlay');
+      ov.innerHTML='<span>기준: '+esc(get('imprint1'))+' · '+esc(get('imprint2'))+' · '+esc(get('imprintColor2'))+'</span>';
+      face.appendChild(ov);
+    }
+    appliedMap[faceKey] = itemId;
+  }
+  function clearFace(faceKey, appliedMap){
+    const face = faceEl(faceKey); if(face){ face.classList.remove('has-photo'); face.querySelectorAll('.photo-fill,.imprint-overlay').forEach(e=>e.remove()); }
+    delete appliedMap[faceKey];
+  }
+
+  function fmtNow(){ const d=new Date(),z=n=>String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes()); }
+
+  function faceOptionsHtml(){
+    return '<option value="none">적용면 선택</option>' +
+      currentFaces().map(f=>'<option value="'+f.key+'">'+esc(f.label)+'</option>').join('');
+  }
+
+  function addThumb(listEl, dataUrl, srcLabel, preFace, appliedMap){
+    const id = 'ph'+(++seq);
+    const item = el('thumb-item');
+    item.innerHTML =
+      '<img src="'+dataUrl+'">'+
+      '<div class="thumb-meta"><b>'+esc(srcLabel)+' #'+seq+'</b>입력 '+fmtNow()+'<br>등급: <span class="grade g-a">A</span> 실물 확인</div>'+
+      '<div class="thumb-ctrl"><select class="face-select">'+faceOptionsHtml()+'</select>'+
+      '<button class="apply-btn">3D 적용</button><button class="remove-btn">삭제</button></div>';
+    listEl.appendChild(item);
+    const sel = item.querySelector('.face-select');
+    const btn = item.querySelector('.apply-btn');
+    if(preFace && currentFaces().some(f=>f.key===preFace)) sel.value = preFace;
+    btn.addEventListener('click', ()=>{
+      const fk = sel.value;
+      if(fk==='none'){ alert('적용할 면을 먼저 선택하세요.'); return; }
+      applyPhoto(fk, dataUrl, id, appliedMap);
+      btn.classList.add('applied');
+      btn.textContent = (currentFaces().find(f=>f.key===fk)||{}).label+' 적용됨';
+    });
+    item.querySelector('.remove-btn').addEventListener('click', ()=>{
+      Object.keys(appliedMap).forEach(k=>{ if(appliedMap[k]===id) clearFace(k, appliedMap); });
+      item.remove();
+    });
+  }
+
+  const appliedQC = {}, appliedVD = {};
+  function wireIntake(dzId, listId, appliedMap){
+    const dz = document.getElementById(dzId);
+    const list = document.getElementById(listId);
+    const inPick = dz.querySelector('.in-pick');
+    const inCam  = dz.querySelector('.in-cam');
+    const srcLabel = inPick.dataset.src;
+    function afterGuided(url, faceKey){ addThumb(list, url, srcLabel, faceKey, appliedMap); }
+    function handle(files){
+      Array.from(files).forEach(f=>{
+        if(!f.type.startsWith('image/')) return;
+        const r=new FileReader();
+        r.onload = e => guidedCapture.startCrop(e.target.result, currentFaces()[0].key, afterGuided);
+        r.readAsDataURL(f);
+      });
+    }
+    inPick.addEventListener('change', e=>{ handle(e.target.files); inPick.value=''; });
+    inCam.addEventListener('change', e=>{ handle(e.target.files); inCam.value=''; });
+    dz.querySelector('[data-act="pick"]').addEventListener('click', e=>{ e.stopPropagation(); inPick.click(); });
+    dz.querySelector('[data-act="cam"]').addEventListener('click', e=>{ e.stopPropagation();
+      guidedCapture.startCamera(currentFaces()[0].key, afterGuided, ()=>inCam.click()); });
+    dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+    dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('over'); handle(e.dataTransfer.files); });
+  }
+
+  /* =====================================================================
+     GUIDED CAPTURE / CROP MODAL
+     ===================================================================== */
+  const guidedCapture = (function(){
+    const modal=document.getElementById('capModal'), stageEl=document.getElementById('capStage');
+    const video=document.getElementById('capVideo'), cropImg=document.getElementById('cropImg');
+    const guide=document.getElementById('guide'), guideLabel=document.getElementById('guideLabel');
+    const faceSel=document.getElementById('capFaceSel'), shutter=document.getElementById('shutterBtn');
+    const cropOk=document.getElementById('cropConfirm'), capHint=document.getElementById('capHint'), capTitle=document.getElementById('capTitle');
+    let mode=null, stream=null, doneCb=null, imgState={scale:1,x:0,y:0,natW:0,natH:0};
+
+    function ratioOf(key){ const f=currentFaces().find(x=>x.key===key); return f?f.ratio:1; }
+    function refreshFaceSel(preFace){
+      faceSel.innerHTML = currentFaces().map(f=>'<option value="'+f.key+'">'+f.label+'</option>').join('');
+      if(preFace) faceSel.value=preFace;
+    }
+    function layoutGuide(){
+      const r=ratioOf(faceSel.value), sw=stageEl.clientWidth, sh=stageEl.clientHeight;
+      let gw=sw*0.7, gh=gw/r;
+      if(gh>sh*0.72){ gh=sh*0.72; gw=gh*r; }
+      guide.style.width=gw+'px'; guide.style.height=gh+'px';
+      guideLabel.textContent=(faceSel.options[faceSel.selectedIndex]||{}).text+' 프레임에 맞춰 주세요';
+    }
+    faceSel.addEventListener('change', layoutGuide);
+    window.addEventListener('resize', ()=>{ if(modal.classList.contains('open')) layoutGuide(); });
+    function guideRect(){ const s=stageEl.getBoundingClientRect(), g=guide.getBoundingClientRect();
+      return {x:g.left-s.left,y:g.top-s.top,w:g.width,h:g.height,sw:s.width,sh:s.height}; }
+    function openModal(m, preFace){
+      mode=m; refreshFaceSel(preFace); modal.classList.add('open'); layoutGuide();
+      video.style.display=m==='camera'?'block':'none';
+      cropImg.style.display=m==='crop'?'block':'none';
+      shutter.style.display=m==='camera'?'block':'none';
+      cropOk.style.display=m==='crop'?'inline-block':'none';
+      capTitle.textContent=m==='camera'?'GUIDED CAPTURE · 촬영':'GUIDED CROP · 자르기';
+      capHint.textContent=m==='camera'
+        ? '노란 프레임 안에 해당 면이 꽉 차도록 맞춘 뒤 촬영 — 프레임 안쪽만 저장됩니다'
+        : '드래그로 이동 · 휠/핀치로 확대 — 프레임 안쪽만 저장됩니다';
+    }
+    function closeModal(){ modal.classList.remove('open'); if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } doneCb=null; }
+    document.getElementById('capClose').addEventListener('click', closeModal);
+
+    async function startCamera(preFace, cb, fallbackFn){
+      doneCb=cb;
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ if(fallbackFn)fallbackFn(); return; }
+      openModal('camera', preFace);
+      try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false}); video.srcObject=stream; }
+      catch(err){ closeModal(); if(fallbackFn)fallbackFn(); else alert('카메라를 열 수 없습니다: '+err.message); }
+    }
+    shutter.addEventListener('click', ()=>{
+      const gr=guideRect(), vw=video.videoWidth, vh=video.videoHeight; if(!vw)return;
+      const scale=Math.max(gr.sw/vw, gr.sh/vh), dispW=vw*scale, dispH=vh*scale;
+      const offX=(gr.sw-dispW)/2, offY=(gr.sh-dispH)/2;
+      const sx=(gr.x-offX)/scale, sy=(gr.y-offY)/scale, sw=gr.w/scale, sh=gr.h/scale;
+      const c=document.createElement('canvas'); c.width=Math.round(sw); c.height=Math.round(sh);
+      c.getContext('2d').drawImage(video, sx,sy,sw,sh, 0,0,c.width,c.height);
+      const url=c.toDataURL('image/jpeg',0.92), fk=faceSel.value, cb=doneCb; closeModal(); if(cb)cb(url,fk);
+    });
+
+    function startCrop(dataUrl, preFace, cb){
+      doneCb=cb; openModal('crop', preFace);
+      cropImg.onload=()=>{ imgState.natW=cropImg.naturalWidth; imgState.natH=cropImg.naturalHeight;
+        const gr=guideRect(); imgState.scale=Math.max(gr.w/imgState.natW, gr.h/imgState.natH); imgState.x=0; imgState.y=0; renderCrop(); };
+      cropImg.src=dataUrl;
+    }
+    function renderCrop(){
+      cropImg.style.width=(imgState.natW*imgState.scale)+'px'; cropImg.style.height=(imgState.natH*imgState.scale)+'px';
+      cropImg.style.transform='translate(calc(-50% + '+imgState.x+'px), calc(-50% + '+imgState.y+'px))';
+    }
+    let cdrag=false, clx=0, cly=0, pinchD=0;
+    stageEl.addEventListener('mousedown', e=>{ if(mode!=='crop')return; cdrag=true; clx=e.clientX; cly=e.clientY; });
+    window.addEventListener('mousemove', e=>{ if(!cdrag||mode!=='crop')return; imgState.x+=e.clientX-clx; imgState.y+=e.clientY-cly; clx=e.clientX; cly=e.clientY; renderCrop(); });
+    window.addEventListener('mouseup', ()=>cdrag=false);
+    stageEl.addEventListener('wheel', e=>{ if(mode!=='crop')return; e.preventDefault(); imgState.scale*=(e.deltaY<0?1.08:0.92); renderCrop(); }, {passive:false});
+    stageEl.addEventListener('touchstart', e=>{ if(mode!=='crop')return;
+      if(e.touches.length===1){ cdrag=true; clx=e.touches[0].clientX; cly=e.touches[0].clientY; }
+      else if(e.touches.length===2){ pinchD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); } }, {passive:true});
+    stageEl.addEventListener('touchmove', e=>{ if(mode!=='crop')return; e.preventDefault();
+      if(e.touches.length===1&&cdrag){ imgState.x+=e.touches[0].clientX-clx; imgState.y+=e.touches[0].clientY-cly; clx=e.touches[0].clientX; cly=e.touches[0].clientY; }
+      else if(e.touches.length===2){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); if(pinchD) imgState.scale*=d/pinchD; pinchD=d; }
+      renderCrop(); }, {passive:false});
+    stageEl.addEventListener('touchend', ()=>{ cdrag=false; pinchD=0; });
+    cropOk.addEventListener('click', ()=>{
+      const gr=guideRect(), dispW=imgState.natW*imgState.scale, dispH=imgState.natH*imgState.scale;
+      const imgLeft=gr.sw/2-dispW/2+imgState.x, imgTop=gr.sh/2-dispH/2+imgState.y;
+      const sx=(gr.x-imgLeft)/imgState.scale, sy=(gr.y-imgTop)/imgState.scale, sw=gr.w/imgState.scale, sh=gr.h/imgState.scale;
+      const c=document.createElement('canvas'); c.width=Math.round(sw); c.height=Math.round(sh);
+      c.getContext('2d').drawImage(cropImg, sx,sy,sw,sh, 0,0,c.width,c.height);
+      const url=c.toDataURL('image/jpeg',0.92), fk=faceSel.value, cb=doneCb; closeModal(); if(cb)cb(url,fk);
+    });
+    return {startCamera, startCrop};
+  })();
+
+  /* =====================================================================
+     TYPE SWITCHING
+     ===================================================================== */
+  const stageLabel=document.getElementById('stageLabel');
+  const viewerTitle=document.getElementById('viewerTitle');
+  const viewerNote=document.getElementById('viewerNote');
+  const packedSections=document.getElementById('packedSections');
+  const typebar=document.getElementById('typebar');
+
+  function setType(t, opts){
+    if(!TYPES[t]) return;
+    currentType = t;
+    const cfg = TYPES[t];
+    // clear any applied photos on outgoing/incoming faces
+    Object.keys(appliedQC).forEach(k=>delete appliedQC[k]);
+    Object.keys(appliedVD).forEach(k=>delete appliedVD[k]);
+    // active model
+    Object.values(MODELS).forEach(m=>m.classList.remove('active','snap'));
+    MODELS[t].classList.add('active');
+    // labels + sections
+    stageLabel.textContent = cfg.stageLabel;
+    viewerTitle.textContent = cfg.viewerTitle;
+    viewerNote.textContent = cfg.viewerNote;
+    packedSections.classList.toggle('hidden', cfg.family!=='packed');
+    // typecards
+    typebar.querySelectorAll('.typecard').forEach(c=>c.classList.toggle('on', c.dataset.type===t));
+    // render dynamic parts
+    renderGrid(cfg);
+    renderImprintPanel(cfg);
+    renderControls(cfg);
+    initFields();
+    syncBinds();
+    refreshGuides();
+    // reset rotation to front-ish
+    rx=-14; ry=28; stopSpin(); apply();
+    if(!opts||!opts.silent) flashDetect('수동 선택', t);
+  }
+
+  typebar.querySelectorAll('.typecard').forEach(card=>{
+    card.addEventListener('click', ()=>setType(card.dataset.type));
+  });
+
+  const autodetect=document.getElementById('autodetect');
+  function flashDetect(reason, t){
+    autodetect.innerHTML = '현재 유형: <b>'+TYPES[t].label+'</b> ('+esc(reason)+'). 다른 유형은 위 카드를 클릭해 전환하세요.';
+  }
+
+  /* =====================================================================
+     PDF INTAKE + PARSE + AUTO-DETECT
+     ===================================================================== */
+  const drop=document.getElementById('siDrop'), input=document.getElementById('siInput'), status=document.getElementById('siStatus');
+  drop.addEventListener('click', ()=>input.click());
+  const attachBtn=document.getElementById('siAttachBtn');
+  if(attachBtn) attachBtn.addEventListener('click', e=>{ e.stopPropagation(); input.click(); });
+  drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', ()=>drop.classList.remove('over'));
+  drop.addEventListener('drop', e=>{ e.preventDefault(); drop.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+  input.addEventListener('change', e=>{ handleFile(e.target.files[0]); input.value=''; });
+  function setStatus(html){ status.innerHTML=html; }
 
   async function handleFile(f){
     if(!f) return;
-    if(f.type === 'application/pdf'){
+    if(f.type==='application/pdf'){
       setStatus('PDF 분석 중… (pdf.js 로딩)');
       try{
         if(!window.pdfjsLib){
           await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
-        const buf = await f.arrayBuffer();
-        const pdf = await window.pdfjsLib.getDocument({data:buf}).promise;
-        let text = '';
-        for(let i=1; i<=Math.min(pdf.numPages,3); i++){
-          const page = await pdf.getPage(i);
-          const tc = await page.getTextContent();
-          text += tc.items.map(it => it.str).join(' ') + '\n';
+        const buf=await f.arrayBuffer();
+        const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
+        let text='';
+        for(let i=1;i<=Math.min(pdf.numPages,3);i++){
+          const page=await pdf.getPage(i); const tc=await page.getTextContent();
+          text += tc.items.map(it=>it.str).join(' ')+'\n';
         }
-        if(text.trim().length < 30){
-          setStatus('<span class="warn">스캔형 PDF로 보입니다 — 텍스트 추출 불가.</span> 화면의 점선 밑줄 값을 클릭해 직접 입력하세요.');
+        if(text.trim().length<30){
+          setStatus('<span class="warn">스캔형 PDF로 보입니다 — 텍스트 추출 불가.</span> 위에서 포장 유형을 고르고, 점선 밑줄 값을 클릭해 직접 입력하세요.');
           return;
         }
         applyParsed(parseSpecText(text), f.name);
       }catch(err){
-        setStatus('<span class="warn">PDF 분석 실패: ' + err.message + '</span> — 오프라인 환경이면 pdf.js CDN 접근이 필요합니다. 직접 입력으로 진행하세요.');
+        setStatus('<span class="warn">PDF 분석 실패: '+err.message+'</span> — 오프라인이면 pdf.js CDN 접근이 필요합니다. 유형 선택 후 직접 입력으로 진행하세요.');
       }
     } else if(f.type.startsWith('image/')){
-      setStatus('<span class="warn">이미지 사양서는 자동 추출을 지원하지 않습니다.</span> 이미지를 참고해 점선 밑줄 값을 직접 입력하세요.');
+      setStatus('<span class="warn">이미지 사양서는 자동 추출을 지원하지 않습니다.</span> 위에서 포장 유형을 고르고, 점선 밑줄 값을 직접 입력하세요.');
     }
   }
+  function loadScript(src){ return new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src=src; sc.onload=res; sc.onerror=()=>rej(new Error('CDN 로드 실패')); document.head.appendChild(sc); }); }
 
-  function loadScript(src){
-    return new Promise((res, rej) => {
-      const sc = document.createElement('script');
-      sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error('CDN 로드 실패'));
-      document.head.appendChild(sc);
-    });
+  function detectType(t, p){
+    // returns {type, reason}
+    if(/단상자\s*착인/.test(t)){
+      if(/(세트|셋트)/.test(p.setType||'') || /세트/.test(t)) return {type:'set', reason:'단상자 착인 + 세트'};
+      return {type:'carton', reason:'단상자 착인'};
+    }
+    if(/용기\s*착인/.test(t)){
+      if(/(일자컷팅|R컷팅|일자\s*컷팅|R\s*컷팅)/.test(t) || /(일자컷팅|R컷팅)/.test(p.cutType||'')) return {type:'tube', reason:'용기 착인 + 컷팅유형'};
+      return {type:'container', reason:'용기 착인 (컷팅 해당없음)'};
+    }
+    if(/(일자컷팅|R컷팅)/.test(p.cutType||'')) return {type:'tube', reason:'컷팅유형'};
+    if(/(세트|셋트)/.test(p.setType||'')) return {type:'set', reason:'세트 표기'};
+    return null;
   }
 
   function parseSpecText(t){
-    const out = {};
-    const grab = (re, idx=1) => { const m = t.match(re); return m ? m[idx].trim() : ''; };
+    const out={};
+    const grab=(re,idx=1)=>{ const m=t.match(re); return m?m[idx].trim():''; };
     out.matno    = grab(/자재\s*번호\s*[:\s]*([0-9]{6,10})/);
-    out.abbr     = grab(/제품\s*약호\s*[:\s]*([A-Z0-9]{2,6}[-‐][A-Z0-9]{2,10})/i);
-    out.nameKr   = grab(/제품명\s*[:\s]*([가-힣A-Za-z0-9\s]{4,40}?)(?=\s{2,}|영문명|$)/m);
+    out.abbr     = grab(/제품\s*약호\s*[:\s]*([A-Z0-9]{2,6}[-‐][A-Z0-9()]{2,14})/i);
+    out.nameKr   = grab(/제품명\s*[:\s]*([가-힣A-Za-z0-9.\s]{4,44}?)(?=\s{2,}|영문명|$)/m);
     out.nameEn   = grab(/영문명\s*[:\s]*([A-Za-z0-9.\s&'-]{6,60})/);
     out.volume   = grab(/표시\s*용량\s*[:\s]*([0-9]+\s?(?:ML|ml|mL|G|g))/);
-    out.customer = grab(/고객사\s*[:\s]*((?:\(주\)|㈜)?[가-힣A-Za-z0-9]{2,20})/);
-    out.custcode = grab(/고객사\s*제품\s*코드\s*[:\s]*([A-Z0-9]{4,15})/);
-    out.setType  = grab(/(단품|세트)/);
-    out.lot      = grab(/(KKM\s*기준|[A-Z]{2,4}\s*기준)/);
+    out.fillVol  = grab(/충전\s*용량\s*[:\s]*([0-9]+\s?(?:ML|ml|mL|G|g))/) || out.volume;
+    out.customer = grab(/고객사\s*[:\s]*((?:\(주\)|㈜|주식회사)?[가-힣A-Za-z0-9()]{2,20})/);
+    out.custcode = grab(/고객사\s*제품\s*코드\s*[:\s]*([A-Z0-9_]{4,18})/);
+    out.setType  = grab(/(단품|세트|셋트)/);
+    out.lot      = grab(/([A-Z]{2,4})\s*기준/) ? grab(/([A-Z]{2,4}\s*기준)/) : '';
     out.approved = grab(/승인\s*일자\s*[:\s]*([0-9]{4}[-.\/][0-9]{2}[-.\/][0-9]{2})/);
-    out.imprintPos   = grab(/위치[^가-힣]{0,6}(밀면|측면|상단|하단|후면|전면)/);
-    out.imprintColor = grab(/색상[^가-힣]{0,6}(검정색?|흑색|백색|흰색)/);
-    out.palletHeight = grab(/적재\s*높이\s*[:\s]*([0-9]{2,3}\s?cm\s?이하)/i);
+    out.cutType  = grab(/(일자컷팅|R컷팅|해당없음)/);
+    out.cutLen   = grab(/완제품\s*길이[^0-9]{0,6}([0-9]{2,4})/);
+    out.imprintPos   = grab(/위치[^가-힣A-Z]{0,6}(밀면|밑면|후면하단|후면\s*하단|압인\(앞,뒤\)|압인|측면|상단|하단|후면|전면)/);
+    out.imprintColor = grab(/색상[^가-힣A-Z]{0,6}(검정색?|흑색|백색|흰색|N\/A)/);
+    out.palletHeight = grab(/적재\s*높이[^0-9]{0,4}([0-9]{2,3}\s?cm\s?이하)/i) || grab(/([0-9]{2,3}cm이하)/);
     out.inboxQty  = grab(/인박스[\s\S]{0,200}?([0-9]{1,4})\s?EA/);
     out.outboxQty = grab(/아웃박스[\s\S]{0,200}?([0-9]{1,4})\s?EA/);
+    out.taping    = grab(/(H\s*테이핑|일자\s*테이핑|H테이핑|일자)/);
+    out._raw = t;
     return out;
   }
 
   function applyParsed(p, fname){
-    let hits = [], miss = [];
-    Object.entries(p).forEach(([k,v]) => {
-      if(v){ setField(k, v); hits.push(k); }
-      else miss.push(k);
+    // auto-detect type first
+    const det = detectType(p._raw||'', p);
+    if(det){ setType(det.type, {silent:true}); flashDetect('자동 판별: '+det.reason, det.type); }
+    let hits=[], miss=[];
+    ['matno','abbr','nameKr','nameEn','volume','fillVol','customer','custcode','setType','lot','approved',
+     'cutType','cutLen','imprintPos','imprintColor','palletHeight','inboxQty','outboxQty','taping'].forEach(k=>{
+      const v=p[k];
+      if(v){ setField(k, v); hits.push(k); } else miss.push(k);
     });
     if(p.abbr) setField('abbr2', p.abbr);
     if(p.lot)  setField('lot2', p.lot);
-    setStatus('<span class="done">「' + fname + '」 추출 완료</span> — 인식 ' + hits.length + '개 항목. '
-      + (miss.length ? '미인식 항목(' + miss.length + '개)은 점선 밑줄을 클릭해 직접 입력하거나, 미기재 시 <span class="gbadge">' + BADGE + '</span> 기준이 적용됩니다.' : '')
-      + ' 모든 추출값은 원본 대조 후 확정하세요.');
+    if(p.imprintColor) setField('imprintColor2', p.imprintColor);
+    if(p.cutLen) setField('cutLen', p.cutLen);
+    if(TYPES[currentType].showComponents) renderComponents();
+    setStatus('<span class="done">「'+esc(fname)+'」 추출 완료</span> — 유형 '+
+      (det?'<b>'+TYPES[det.type].label+'</b> 자동판별, ':'')+'인식 '+hits.length+'개 항목. '+
+      (miss.length?'미인식('+miss.length+'개)은 점선 밑줄 클릭해 입력하거나, 미기재 시 <span class="gbadge">'+BADGE+'</span> 기준 적용.':'')+
+      ' 모든 값은 원본 대조 후 확정하세요.');
     refreshGuides();
   }
-})();
 
+  /* =====================================================================
+     BOOT
+     ===================================================================== */
+  initFields();                 // wire static header/label/pallet fields
+  wireIntake('dzQC','listQC', appliedQC);
+  wireIntake('dzVD','listVD', appliedVD);
+  setType('carton', {silent:true});
+  flashDetect('기본값', 'carton');
+})();
 </script>
 
 </body>
