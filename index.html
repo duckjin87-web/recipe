@@ -546,7 +546,7 @@
           <input type="url" id="refProxyUrl" class="ref-proxy-in" placeholder="프록시 URL (최초 1회) 예: https://your-proj.vercel.app" spellcheck="false">
           <button type="button" class="ref-apply-btn" id="refSearchBtn">&#128260; 새로고침</button>
         </div>
-        <div class="ref-auto-status" id="refAutoStatus">프록시 URL을 한 번 넣으면, 이후 제품명이 바뀔 때마다 <b>자동으로 실시간 조회</b>됩니다. (프록시 배포는 <b>proxy/</b> 폴더 참고)</div>
+        <div class="ref-auto-status" id="refAutoStatus">프록시 연결됨 — 제품명(국문)이 있으면 <b>제품명이 바뀔 때마다 자동으로 실시간 조회</b>됩니다. (네이버 이미지·후기·판매)</div>
         <div class="ref-thumbs" id="refThumbs"></div>
         <div class="ref-snips" id="refSnips"></div>
       </div>
@@ -1798,8 +1798,9 @@
   const refAutoStatus=document.getElementById('refAutoStatus');
   const refThumbs=document.getElementById('refThumbs');
   const refSnips=document.getElementById('refSnips');
+  const DEFAULT_PROXY = 'https://recipe-tan-six.vercel.app';
   if(proxyIn){
-    proxyIn.value = localStorage.getItem('refProxyUrl')||'';
+    proxyIn.value = localStorage.getItem('refProxyUrl') || DEFAULT_PROXY;
     proxyIn.addEventListener('change', ()=>{ localStorage.setItem('refProxyUrl', proxyIn.value.trim().replace(/\/+$/,'')); scheduleAutoSearch(300); });
   }
   const proxyBase = ()=> (proxyIn && proxyIn.value.trim().replace(/\/+$/,'')) || '';
