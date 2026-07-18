@@ -330,59 +330,6 @@
   .shape-lock-note{display:none;font-size:11px;color:var(--stamp-red);font-family:'IBM Plex Mono',monospace;}
   .shape-card.disabled .shape-lock-note{display:block;}
   .shape-card.disabled .shape-presets,.shape-card.disabled .dim-row{opacity:.35;pointer-events:none;}
-  /* design reference (01·5) */
-  .ref-card{background:#fff;border:1px solid var(--ink);}
-  .ref-head{background:var(--stamp-blue);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;gap:10px;}
-  .ref-head #refTarget{opacity:.85;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .ref-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  @media(max-width:820px){.ref-body{grid-template-columns:1fr;}}
-  .ref-links{display:flex;flex-direction:column;gap:8px;}
-  .ref-link{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line);border-radius:2px;padding:9px 11px;text-decoration:none;color:var(--ink);font-size:12.5px;transition:border-color .15s,background .15s;}
-  .ref-link:hover{border-color:var(--stamp-blue);background:#f5f8ff;}
-  .ref-link.disabled{opacity:.4;pointer-events:none;}
-  .ref-link .ico{font-size:15px;}
-  .ref-link .q{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);}
-  .ref-note-wrap{display:flex;flex-direction:column;gap:8px;}
-  .ref-note-head{font-size:12px;font-weight:700;}
-  .ref-note-head .ref-sub{font-weight:400;color:var(--ink-soft);font-size:10.5px;font-family:'IBM Plex Mono',monospace;}
-  .ref-note{border:1px dashed var(--line);padding:10px 12px;font-size:12.5px;line-height:1.7;min-height:66px;background:#fcfcfa;}
-  .ref-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
-  .ref-grade{font-size:11px;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
-  .ref-apply-btn{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;border:1.5px solid var(--matcha-d);background:#fff;color:var(--matcha-d);padding:7px 12px;cursor:pointer;border-radius:2px;}
-  .ref-apply-btn:hover{background:var(--matcha-d);color:#fff;}
-  .ref-foot{padding:10px 14px;border-top:1px solid var(--line);font-size:10.5px;color:var(--ink-soft);line-height:1.6;font-family:'IBM Plex Mono',monospace;}
-  /* auto search */
-  .ref-auto{padding:0 14px 14px;border-top:1px solid var(--line);}
-  .ref-auto-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0 8px;font-size:12px;font-weight:700;}
-  .ref-proxy-in{flex:1;min-width:200px;padding:6px 9px;border:1.5px solid var(--line);border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
-  .ref-auto-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);line-height:1.6;padding-bottom:8px;}
-  .ref-auto-status .warn{color:var(--stamp-red);}
-  .ref-auto-status .done{color:#2c5a34;font-weight:600;}
-  .ref-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}
-  .ref-thumb{border:1px solid var(--line);position:relative;background:#f3f2ec;overflow:hidden;}
-  .ref-thumb img{width:100%;height:84px;object-fit:cover;display:block;}
-  .ref-thumb .src{position:absolute;top:3px;left:3px;font-family:'IBM Plex Mono',monospace;font-size:8px;background:rgba(0,0,0,.6);color:#fff;padding:1px 4px;border-radius:2px;}
-  .ref-thumb .to02b{position:absolute;bottom:0;left:0;right:0;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;border:none;background:var(--stamp-blue);color:#fff;padding:4px;cursor:pointer;}
-  .ref-thumb .to02b:disabled{background:#7a8aa5;cursor:default;}
-  .ref-snips{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
-  .ref-snip{font-size:11.5px;line-height:1.5;border-bottom:1px dotted var(--line);padding-bottom:4px;}
-  .ref-snip a{color:var(--stamp-blue);text-decoration:none;}
-  .ref-snip .tg{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink-soft);margin-right:5px;}
-  /* live layout */
-  .ref-live{padding:14px;}
-  .ref-live-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
-  .ref-adv{border-top:1px solid var(--line);}
-  .ref-adv>summary{cursor:pointer;padding:11px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);list-style:none;}
-  .ref-adv>summary::-webkit-details-marker{display:none;}
-  .ref-adv>summary::before{content:'▸ ';color:var(--stamp-blue);}
-  .ref-adv[open]>summary::before{content:'▾ ';}
-  .ref-adv .ref-body{border-top:none;}
-  .ref-compose-toggle{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;}
-  .ref-compose{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 0 8px;font-size:11.5px;}
-  .ref-compose:empty{display:none;}
-  .ref-compose .cbtn{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;border:1.5px solid var(--ink);background:#fff;color:var(--ink);padding:4px 9px;cursor:pointer;border-radius:2px;}
-  .ref-compose .cbtn:hover{background:var(--ink);color:#fff;}
-  .ref-compose .clabel{font-family:'IBM Plex Mono',monospace;color:var(--stamp-red);font-weight:600;}
   .comp-card{background:#fff;border:1px solid var(--ink);}
   .comp-head{background:var(--matcha-d);color:#fff;padding:8px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;display:flex;justify-content:space-between;}
   .comp-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
@@ -539,45 +486,6 @@
     <div class="spec-grid" id="specGrid"></div>
   </section>
 
-  <!-- 01.5 DESIGN REFERENCE -->
-  <section>
-    <div class="sec-head">
-      <span class="sec-num">01·5</span><h2>디자인 레퍼런스 (실시간 조회)</h2>
-      <span class="sec-note">제품명(국문)으로 조회 당시의 웹 이미지·후기를 실시간 표시</span>
-    </div>
-    <div class="ref-card">
-      <div class="ref-head"><span>DESIGN REFERENCE · 실시간</span><span id="refTarget">—</span></div>
-      <div class="ref-live">
-        <div class="ref-live-bar">
-          <input type="url" id="refProxyUrl" class="ref-proxy-in" placeholder="프록시 URL (최초 1회) 예: https://your-proj.vercel.app" spellcheck="false">
-          <label class="ref-compose-toggle"><input type="checkbox" id="refAutoCompose"> 검색 시 3D 자동 구성</label>
-          <button type="button" class="ref-apply-btn" id="refSearchBtn">&#128260; 새로고침</button>
-        </div>
-        <div class="ref-auto-status" id="refAutoStatus">프록시 연결됨 — 제품명(국문)이 있으면 <b>제품명이 바뀔 때마다 자동으로 실시간 조회</b>됩니다. (네이버 이미지·후기·판매)</div>
-        <div class="ref-compose" id="refCompose"></div>
-        <div class="ref-thumbs" id="refThumbs"></div>
-        <div class="ref-snips" id="refSnips"></div>
-      </div>
-      <details class="ref-adv">
-        <summary>고급 · 수동 검색 링크 / 디자인 종합 노트 / 3D 색상 반영</summary>
-        <div class="ref-body">
-          <div class="ref-links" id="refLinks"></div>
-          <div class="ref-note-wrap">
-            <div class="ref-note-head">디자인 종합 노트 <span class="ref-sub">(색상·레이아웃·형태 정리 · 클릭 편집)</span></div>
-            <div class="ref-note fv" data-f="designNote" data-ph="예: 화이트 카톤 + 다크그린 타이포 + 말차그린 원형 모티프">화이트 바디 + 다크그린 로고 타이포 + 말차그린 원형 모티프. (동일 라인 제주말차 클레이 · 공개 판매채널 기준)</div>
-            <div class="ref-actions">
-              <span class="ref-grade">종합 출처등급 <span class="grade g-b">B</span> 공개채널 확인</span>
-              <button type="button" class="ref-apply-btn" id="refApplyBtn">종합 색상 → 3D 전면 반영</button>
-            </div>
-          </div>
-        </div>
-      </details>
-      <div class="ref-foot">
-        ※ API 키는 <b>프록시(Vercel) 환경변수</b>에만 저장되며 페이지엔 노출되지 않습니다. 썸네일의 <b>“→ 02B 검수사진”</b>을 누르면 3D 모델에 실사로 반영됩니다.
-      </div>
-    </div>
-  </section>
-
   <!-- 02 3D -->
   <section>
     <div class="sec-head">
@@ -600,8 +508,8 @@
   <!-- 02B PHOTO INTAKE -->
   <section>
     <div class="sec-head">
-      <span class="sec-num">02B</span><h2>실물 레퍼런스 사진 입력</h2>
-      <span class="sec-note">사진을 넣고 적용면을 선택하면 3D 모델에 실사가 반영됩니다</span>
+      <span class="sec-num">02B</span><h2>실물 사진 입력 (① 촬영 / ② 검수 자재사진)</h2>
+      <span class="sec-note">실제 제품을 촬영하거나 검수 시 자재 사진을 입력 → 적용면 선택 시 3D에 반영</span>
     </div>
     <div class="intake-row">
       <div class="intake-card">
@@ -1174,8 +1082,6 @@
     }
     // 착인 사양 입력 → 형상 카드 활성화 상태 갱신
     if(f==='imprintPos'||f==='imprintColor'||f==='imprint1'||f==='imprint2') refreshShapeEnable();
-    // 제품명 변경 → 검색어 갱신 + 실시간 자동 조회 예약
-    if(f==='nameKr'||f==='nameEn'||f==='abbr'||f==='abbr2'){ renderRefLinks(); if(typeof scheduleAutoSearch==='function') scheduleAutoSearch(); }
   }
   function get(f){ return state[f] || ''; }
 
@@ -1184,13 +1090,12 @@
     'customer','custcode','approved','owner','structure','cutType','cutLen',
     'imprintPos','imprintPos2','imprintColor','imprintColor2','imprintMethod','imprintNote','imprint1','imprint2',
     'components','inboxPos','inboxQty','inboxRem','outboxPos','outboxQty','outboxRem','taping',
-    'palletType','palletHeight','palletBox','palletTier','palletLabel','remainderRule','note','designNote'];
+    'palletType','palletHeight','palletBox','palletTier','palletLabel','remainderRule','note'];
   function clearItemFields(){
     ITEM_FIELDS.forEach(f=>{ state[f]=''; });
     document.querySelectorAll('.fv').forEach(el=>{ if(ITEM_FIELDS.indexOf(el.dataset.f)>=0){ el.textContent=''; el.classList.add('empty'); } });
     Object.keys(SHAPE).forEach(k=>delete SHAPE[k]);
     syncBinds(); refreshGuides();
-    if(typeof renderRefLinks==='function') renderRefLinks();
     if(document.getElementById('compBody')) renderComponents();
     if(typeof refreshShapeEnable==='function') refreshShapeEnable();
     if(typeof updateShapeBadge==='function') updateShapeBadge();
@@ -1753,189 +1658,6 @@
   }
 
   /* =====================================================================
-     DESIGN REFERENCE (01·5) — 제품명 기반 검색 링크 + 색상 종합 반영
-     ===================================================================== */
-  const SHOP = [
-    {ico:'🟢', name:'네이버 블로그·후기', tag:'후기', url:q=>'https://search.naver.com/search.naver?where=view&query='+q},
-    {ico:'🛒', name:'네이버 쇼핑',        tag:'판매', url:q=>'https://search.shopping.naver.com/search/all?query='+q},
-    {ico:'🖼️', name:'구글 이미지',        tag:'이미지', url:q=>'https://www.google.com/search?tbm=isch&q='+q},
-    {ico:'📦', name:'쿠팡',              tag:'판매', url:q=>'https://www.coupang.com/np/search/products?q='+q},
-    {ico:'🏬', name:'공식몰·브랜드스토어', tag:'공식', url:q=>'https://www.google.com/search?q='+q+'%20%EA%B3%B5%EC%8B%9D%EB%AA%B0%20OR%20%EB%B8%8C%EB%9E%9C%EB%93%9C%EC%8A%A4%ED%86%A0%EC%96%B4'}
-  ];
-  function refQuery(){ return (get('nameKr')||get('nameEn')||get('abbr')||'').trim(); }
-  function renderRefLinks(){
-    const wrap=document.getElementById('refLinks'); if(!wrap) return;
-    const q=refQuery(); const eq=encodeURIComponent(q);
-    const tgt=document.getElementById('refTarget'); if(tgt) tgt.textContent = q || '제품명 미입력';
-    wrap.innerHTML = SHOP.map(s=>
-      '<a class="ref-link'+(q?'':' disabled')+'" target="_blank" rel="noopener noreferrer" href="'+(q?s.url(eq):'#')+'">'+
-      '<span class="ico">'+s.ico+'</span><span>'+s.name+'</span><span class="q">'+s.tag+' ↗</span></a>').join('');
-  }
-  const REF_PALETTES = [
-    {re:/블랙|검정|흑색|\bblack\b|다크(?!그린|green)/i, name:'블랙', bg:'linear-gradient(180deg,#2b2b28 0%,#191917 100%)', ink:'#efece2', accent:'#c9a24a', swatch:'radial-gradient(circle at 40% 35%,#565650,#222)'},
-    {re:/블루|파랑|남색|blue|navy/i,  name:'블루', bg:'linear-gradient(180deg,#f7f9fd 0%,#eaf0fa 100%)', ink:'#1f3350', accent:'#3a5a9c', swatch:'radial-gradient(circle at 40% 35%,#9db6e0,#3a5a9c)'},
-    {re:/핑크|분홍|로즈|pink|rose/i,  name:'핑크', bg:'linear-gradient(180deg,#fdf7f9 0%,#f8e8ef 100%)', ink:'#7a2f4a', accent:'#c56a86', swatch:'radial-gradient(circle at 40% 35%,#e8b7c8,#c56a86)'},
-    {re:/옐로|노랑|골드|yellow|gold/i,name:'옐로', bg:'linear-gradient(180deg,#fdfbf3 0%,#f5eecf 100%)', ink:'#6a5410', accent:'#c79a1e', swatch:'radial-gradient(circle at 40% 35%,#f0d97a,#c79a1e)'}
-  ];
-  const REF_GREEN = {name:'말차그린', bg:'linear-gradient(180deg,#fdfcf9 0%,#f2f5ec 100%)', ink:'#1f3a2d', accent:'#4f7a4a', swatch:'radial-gradient(circle at 62% 68%, rgba(255,255,255,.35) 0 18%, transparent 20%),radial-gradient(circle at 34% 30%, #b9cc90, #86a25e 55%, #5d7a45)'};
-  function detectPalette(note){
-    const t=note||'';
-    if(/말차|matcha|그린|초록|녹색|green/i.test(t)) return REF_GREEN;   // 그린/말차 우선
-    const hit=REF_PALETTES.find(p=>p.re.test(t));
-    return hit || REF_GREEN;
-  }
-  function applyRefColors(pal){
-    const m=activeModel(); if(!m) return;
-    const front=m.querySelector('[data-face="front"]');
-    if(front && pal.bg && !front.classList.contains('has-photo')) front.style.background=pal.bg;
-    m.querySelectorAll('.fb-brand,.top-logo,.tbn,.lid-brand,.fb-kr,.tbv').forEach(e=>{ e.style.color=pal.ink; });
-    m.querySelectorAll('.fb-name em').forEach(e=>{ e.style.color=pal.accent; });
-    const sw=m.querySelector('.fb-swatch'); if(sw&&pal.swatch) sw.style.background=pal.swatch;
-    return pal;
-  }
-  const refApplyBtn=document.getElementById('refApplyBtn');
-  if(refApplyBtn) refApplyBtn.addEventListener('click', ()=>{
-    const pal=applyRefColors(detectPalette(get('designNote')));
-    refApplyBtn.textContent='전면 반영됨 · '+(pal?pal.name:'')+' 계열';
-    setTimeout(()=>{ refApplyBtn.textContent='종합 색상 → 3D 전면 반영'; }, 1600);
-  });
-
-  /* --- 자동 검색 (프록시 경유 · 네이버+구글) --- */
-  const proxyIn=document.getElementById('refProxyUrl');
-  const refSearchBtn=document.getElementById('refSearchBtn');
-  const refAutoStatus=document.getElementById('refAutoStatus');
-  const refThumbs=document.getElementById('refThumbs');
-  const refSnips=document.getElementById('refSnips');
-  const DEFAULT_PROXY = 'https://recipe-tan-six.vercel.app';
-  if(proxyIn){
-    proxyIn.value = localStorage.getItem('refProxyUrl') || DEFAULT_PROXY;
-    proxyIn.addEventListener('change', ()=>{ localStorage.setItem('refProxyUrl', proxyIn.value.trim().replace(/\/+$/,'')); scheduleAutoSearch(300); });
-  }
-  const proxyBase = ()=> (proxyIn && proxyIn.value.trim().replace(/\/+$/,'')) || '';
-  let autoTimer=null, lastAutoQ='';
-  function scheduleAutoSearch(delay){
-    if(!proxyBase() || !refQuery()) return;
-    clearTimeout(autoTimer);
-    autoTimer=setTimeout(()=>{ if(refQuery() && refQuery()!==lastAutoQ){ lastAutoQ=refQuery(); autoSearch(); } }, delay||800);
-  }
-
-  async function fetchToDataUrl(base, url){
-    const r=await fetch(base+'/api/img?url='+encodeURIComponent(url));
-    if(!r.ok) throw new Error('img '+r.status);
-    const blob=await r.blob();
-    return await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob); });
-  }
-  function autoDraftNote(d){
-    const titles=[].concat((d.blogs||[]).map(b=>b.title),(d.shops||[]).map(s=>s.title)).join(' ');
-    const colors=[];
-    [[/화이트|white/i,'화이트'],[/블랙|검정/i,'블랙'],[/그린|말차|초록/i,'말차그린'],[/블루|파랑/i,'블루'],[/핑크|분홍/i,'핑크'],[/골드|노랑|옐로/i,'골드']]
-      .forEach(([re,name])=>{ if(re.test(titles)) colors.push(name); });
-    const cur=get('designNote');
-    const draft='[자동초안] 검색 상위 색상 키워드: '+(colors.length?colors.join(', '):'미검출')+'. 썸네일 확인 후 색상·레이아웃·형태를 정리하세요.';
-    if(!cur || /^\[자동초안\]/.test(cur) || /제주말차|Curing skin/.test(cur)) setField('designNote', draft);
-  }
-  function renderResults(d, base){
-    refThumbs.innerHTML=''; refSnips.innerHTML='';
-    (d.images||[]).forEach(im=>{
-      const cell=el('ref-thumb');
-      cell.innerHTML='<span class="src">'+esc(im.source||'')+'</span>'+
-        '<img src="'+esc(im.thumb||im.url)+'" loading="lazy" referrerpolicy="no-referrer">'+
-        '<button class="to02b" type="button">→ 02B 검수사진</button>';
-      cell.querySelector('.to02b').addEventListener('click', ev=>{
-        const btn=ev.currentTarget; btn.disabled=true; btn.textContent='불러오는 중…';
-        fetchToDataUrl(base, im.url||im.thumb)
-          .then(url=>{ addThumb(document.getElementById('listQC'), url, '웹검색', currentFaces()[0].key, appliedQC); btn.textContent='02B에 추가됨'; })
-          .catch(()=>{ btn.disabled=false; btn.textContent='실패 · 재시도'; });
-      });
-      refThumbs.appendChild(cell);
-    });
-    const snip=(tag,title,link,desc)=>'<div class="ref-snip"><span class="tg">'+tag+'</span><a href="'+esc(link)+'" target="_blank" rel="noopener noreferrer">'+esc(title)+'</a>'+(desc?' — '+esc(desc):'')+'</div>';
-    let html='';
-    (d.blogs||[]).slice(0,5).forEach(b=>html+=snip('후기', b.title, b.link, b.desc));
-    (d.shops||[]).slice(0,5).forEach(s=>html+=snip('판매', s.title+(s.price?' ('+Number(s.price).toLocaleString()+'원)':''), s.link, s.mall));
-    refSnips.innerHTML=html;
-    autoDraftNote(d);
-  }
-  async function autoSearch(){
-    const base=proxyBase(), q=refQuery();
-    if(!base){ refAutoStatus.innerHTML='<span class="warn">프록시 URL을 먼저 입력하세요.</span> (proxy/ 폴더를 Vercel에 배포 후 URL 입력)'; return; }
-    if(!q){ refAutoStatus.innerHTML='<span class="warn">제품명(국문)을 먼저 입력/추출하세요.</span>'; return; }
-    refAutoStatus.textContent='검색 중… '+q; refThumbs.innerHTML=''; refSnips.innerHTML='';
-    try{
-      const r=await fetch(base+'/api/search?q='+encodeURIComponent(q));
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const d=await r.json();
-      renderResults(d, base);
-      refImages = d.images||[]; refImgIdx=0;
-      const parts=['이미지 '+refImages.length, '후기 '+(d.blogs||[]).length, '판매 '+(d.shops||[]).length];
-      refAutoStatus.innerHTML='<span class="done">'+esc(q)+' 검색 완료</span> — '+parts.join(' · ')+
-        ((d.errors&&d.errors.length)?' · <span class="warn">'+esc(d.errors.join(', '))+'</span>':'');
-      if(refAutoComposeOn() && refImages.length) autoCompose(0);
-      else renderComposeBar();
-    }catch(e){
-      refAutoStatus.innerHTML='<span class="warn">검색 실패: '+esc(e.message)+'</span> — 프록시 URL·키·CORS(ALLOW_ORIGIN) 확인.';
-    }
-  }
-  if(refSearchBtn) refSearchBtn.addEventListener('click', autoSearch);
-
-  /* --- 검색 결과로 3D 자동 구성 (대표 이미지 텍스처 + 색상) --- */
-  const appliedAuto={};
-  const refComposeEl=document.getElementById('refCompose');
-  const refAutoComposeChk=document.getElementById('refAutoCompose');
-  let refImages=[], refImgIdx=0;
-  if(refAutoComposeChk){
-    refAutoComposeChk.checked = localStorage.getItem('refAutoCompose')!=='0';
-    refAutoComposeChk.addEventListener('change', ()=>{
-      localStorage.setItem('refAutoCompose', refAutoComposeChk.checked?'1':'0');
-      if(refAutoComposeChk.checked && refImages.length) autoCompose(0); else clearCompose();
-    });
-  }
-  const refAutoComposeOn = ()=> refAutoComposeChk && refAutoComposeChk.checked;
-  function composeFaceKey(){ const f=currentFaces(); return (f.find(x=>x.key==='front')||f[0]).key; }
-  function clearCompose(){
-    Object.keys(appliedAuto).forEach(k=>clearFace(k, appliedAuto));
-    renderComposeBar();
-    updateShapeBadge();
-  }
-  async function autoCompose(idx){
-    if(!refImages.length) return;
-    refImgIdx = ((idx % refImages.length)+refImages.length)%refImages.length;
-    const im=refImages[refImgIdx], base=proxyBase();
-    renderComposeBar('구성 중…');
-    try{
-      const url=await fetchToDataUrl(base, im.url||im.thumb);
-      Object.keys(appliedAuto).forEach(k=>clearFace(k, appliedAuto));
-      applyPhoto(composeFaceKey(), url, 'auto', appliedAuto);
-      applyRefColors(detectPalette(get('designNote')));
-      if(stageGrade) stageGrade.innerHTML='형상 소스 <span class="grade g-c" style="margin-left:4px;">자동 구성 · 미검증</span>';
-      renderComposeBar();
-    }catch(e){ renderComposeBar('이미지 불러오기 실패 · 다음 후보로'); }
-  }
-  function renderComposeBar(msg){
-    if(!refComposeEl) return;
-    if(!refImages.length){ refComposeEl.innerHTML=''; return; }
-    const applied=Object.keys(appliedAuto).length>0;
-    let html='';
-    if(applied){
-      html+='<span class="clabel">자동 구성 '+(refImgIdx+1)+'/'+refImages.length+' · 미검증(C)</span>'+
-        '<button type="button" class="cbtn" data-c="prev">◀ 이전</button>'+
-        '<button type="button" class="cbtn" data-c="next">다음 ▶</button>'+
-        '<button type="button" class="cbtn" data-c="clear">해제</button>';
-    } else {
-      html+='<button type="button" class="cbtn" data-c="do">&#127912; 검색결과로 3D 자동 구성</button>';
-    }
-    if(msg) html+=' <span style="color:var(--ink-soft);">'+esc(msg)+'</span>';
-    refComposeEl.innerHTML=html;
-    refComposeEl.querySelectorAll('.cbtn').forEach(b=>b.addEventListener('click', ()=>{
-      const c=b.dataset.c;
-      if(c==='do') autoCompose(0);
-      else if(c==='next') autoCompose(refImgIdx+1);
-      else if(c==='prev') autoCompose(refImgIdx-1);
-      else if(c==='clear') clearCompose();
-    }));
-  }
-
-  /* =====================================================================
      PDF INTAKE + PARSE + AUTO-DETECT
      ===================================================================== */
   const drop=document.getElementById('siDrop'), input=document.getElementById('siInput'), status=document.getElementById('siStatus');
@@ -2069,8 +1791,6 @@
   });
   setType('carton', {silent:true});
   flashDetect('기본값', 'carton');
-  renderRefLinks();
-  scheduleAutoSearch(500);   // 저장된 프록시 + 제품명 있으면 로드시 자동 조회
 })();
 </script>
 

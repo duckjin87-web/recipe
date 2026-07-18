@@ -1,7 +1,0 @@
-{
-  "name": "spec-search-proxy",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "description": "포장사양서 뷰어용 디자인 레퍼런스 검색 프록시 (네이버+구글, Vercel)"
-}
