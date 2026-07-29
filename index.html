@@ -1842,16 +1842,17 @@
   function makePlaceholderTexture(){
     const c=document.createElement('canvas'); c.width=1024; c.height=512;
     const g=c.getContext('2d');
-    g.fillStyle='#f3f4ef'; g.fillRect(0,0,c.width,c.height);
-    // 앞면(가운데 1/3)에 브랜드 블록
+    const lg=g.createLinearGradient(0,0,0,512); lg.addColorStop(0,'#ffffff'); lg.addColorStop(1,'#eef2f5');
+    g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
+    // 앞면(가운데)에 선크림 스타일 인쇄
     g.save(); g.translate(c.width*0.5, c.height*0.5); g.textAlign='center';
-    g.fillStyle='#2f4a2b'; g.font='700 62px "Noto Sans KR", sans-serif';
-    g.fillText('Dr.Ceuracle', 0, -70);
-    g.strokeStyle='#4f7a4a'; g.lineWidth=3; g.beginPath(); g.moveTo(-90,-30); g.lineTo(90,-30); g.stroke();
-    g.fillStyle='#4f7a4a'; g.font='700 40px "Noto Sans KR", sans-serif';
-    g.fillText('TUBE', 0, 30);
-    g.fillStyle='#5c6b58'; g.font='500 30px "IBM Plex Mono", monospace';
-    g.fillText('120ML', 0, 96);
+    g.fillStyle='#3f6fb0'; g.fillRect(-124,-166,248,40);         // accent pill
+    g.fillStyle='#ffffff'; g.font='700 24px "IBM Plex Mono", monospace'; g.fillText('SPF50+ PA++++', 0,-139);
+    g.fillStyle='#22303c'; g.font='800 56px "Noto Sans KR", sans-serif'; g.fillText('SUN', 0,-58);
+    g.fillStyle='#3f6fb0'; g.font='800 44px "Noto Sans KR", sans-serif'; g.fillText('ESSENCE', 0,-8);
+    g.strokeStyle='#cdd6de'; g.lineWidth=2; g.beginPath(); g.moveTo(-96,26); g.lineTo(96,26); g.stroke();
+    g.fillStyle='#5c6b74'; g.font='500 28px "IBM Plex Mono", monospace'; g.fillText('50 ML', 0,66);
+    g.fillStyle='#9aa7b2'; g.font='500 18px "IBM Plex Mono", monospace'; g.fillText('WATERPROOF · TONE-UP', 0,104);
     g.restore();
     const t=new THREE.CanvasTexture(c);
     t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=8;
@@ -1895,7 +1896,7 @@
     bodyMat=new THREE.MeshPhysicalMaterial({
       color:0xffffff, roughness:0.72, metalness:0.0,
       transmission:0.10, thickness:1.2, ior:1.45, attenuationColor:new THREE.Color(0xeef1ea), attenuationDistance:3.0,
-      clearcoat:0.0, envMapIntensity:1.0
+      clearcoat:0.0, envMapIntensity:1.2
     });
     placeholderTex=makePlaceholderTexture(); bodyMat.map=placeholderTex;
     const body=new THREE.Mesh(bodyGeo, bodyMat); body.castShadow=true; body.receiveShadow=true; grp.add(body);
@@ -1905,8 +1906,8 @@
     const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.30,0.12,48), neckMat);
     neck.position.y=1.60; neck.castShadow=true; grp.add(neck);
 
-    // 플립탑 캡: 본체 + 돔 + 힌지 + 노즐
-    const capMat=new THREE.MeshPhysicalMaterial({color:0x5d7a45, roughness:0.5, metalness:0, clearcoat:0.15, clearcoatRoughness:0.5});
+    // 플립탑 캡: 본체 + 돔 + 힌지 + 노즐 (선크림 흰색 캡)
+    const capMat=new THREE.MeshPhysicalMaterial({color:0xeef1f4, roughness:0.45, metalness:0, clearcoat:0.25, clearcoatRoughness:0.4});
     const cap=new THREE.Group();
     const capBody=new THREE.Mesh(new THREE.CylinderGeometry(0.36,0.34,0.46,48), capMat);
     capBody.position.y=1.66+0.23; capBody.castShadow=true; cap.add(capBody);
@@ -1926,6 +1927,8 @@
     const seal=new THREE.Mesh(new THREE.BoxGeometry(1.92,0.5,0.06), sealMat);
     seal.position.y=-1.86; seal.castShadow=true; seal.receiveShadow=true; grp.add(seal);
 
+    // 선크림 튜브 = 타원(장방형) 단면 → 로컬 Z축을 납작하게 (회전은 rotation으로만 적용되어 유지됨)
+    grp.scale.set(1, 1, 0.44);
     grp.__cap=cap;
     return grp;
   }
@@ -1937,7 +1940,7 @@
       renderer=new THREE.WebGLRenderer({antialias:false, alpha:true});
       renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
       renderer.outputColorSpace=THREE.SRGBColorSpace;
-      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
+      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12;
       renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
       canvas=renderer.domElement;
       canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;touch-action:none;';
@@ -1946,8 +1949,8 @@
       scene.environment=pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
       camera=new THREE.PerspectiveCamera(32,1,0.1,100); camera.position.set(0,0,8.2);
       // key/fill + ambient
-      const key=new THREE.DirectionalLight(0xffffff,2.4); key.position.set(3.5,6,5);
-      key.castShadow=true; key.shadow.mapSize.set(1024,1024); key.shadow.radius=8;
+      const key=new THREE.DirectionalLight(0xffffff,2.7); key.position.set(3.5,6,5);
+      key.castShadow=true; key.shadow.mapSize.set(2048,2048); key.shadow.radius=8; key.shadow.bias=-0.0004;
       key.shadow.camera.near=1; key.shadow.camera.far=30;
       key.shadow.camera.left=-4; key.shadow.camera.right=4; key.shadow.camera.top=5; key.shadow.camera.bottom=-5;
       scene.add(key);
@@ -1987,9 +1990,12 @@
       const t=cssTube(); if(t) t.style.visibility='hidden';   // CSS 튜브 숨김
       if(!ro){ ro=new ResizeObserver(()=>{ if(mounted){ sizeToStage(stageEl); renderFrame(); } }); ro.observe(stageEl); }
       sizeToStage(stageEl);
+      if(!this._badge){ this._badge=document.createElement('div'); this._badge.textContent='WebGL · PBR';
+        this._badge.style.cssText='position:absolute;bottom:8px;left:10px;z-index:2;font:600 10px "IBM Plex Mono",monospace;color:#2c5a34;background:rgba(255,255,255,.72);padding:2px 6px;border-radius:2px;pointer-events:none;'; }
+      stageEl.appendChild(this._badge);
       const r=window.__viewerRot||{rx:-14,ry:28}; this.setRotation(r.rx,r.ry);
     },
-    hide(){ mounted=false; if(canvas) canvas.style.display='none'; const t=cssTube(); if(t) t.style.visibility=''; },
+    hide(){ mounted=false; if(canvas) canvas.style.display='none'; const t=cssTube(); if(t) t.style.visibility=''; if(this._badge&&this._badge.parentNode) this._badge.parentNode.removeChild(this._badge); },
     setRotation(rx,ry){ if(!ready||!group) return; group.rotation.set(rx*DEG, ry*DEG, 0); renderFrame(); },
     setBodyTexture(url){
       if(!ready||!bodyMat) return;
