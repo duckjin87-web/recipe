@@ -1386,6 +1386,20 @@
     });
     const spin = el('ctrl-btn'); spin.id='spinBtn'; spin.textContent='자동회전';
     ctrlRail.appendChild(spin);
+    // 튜브 전용: 단면(원형/타원) 토글
+    if(currentType==='tube'){
+      const cur = (window.__TubeGL && window.__TubeGL.getCrossSection && window.__TubeGL.getCrossSection())
+                  || (localStorage.getItem('tubeCross')||'oval');
+      [['oval','타원'],['round','원형']].forEach(([v,label])=>{
+        const b=el('ctrl-btn'+(cur===v?' spin-on':'')); b.textContent='단면 '+label; b.dataset.cross=v;
+        b.addEventListener('click', ()=>{
+          try{ localStorage.setItem('tubeCross', v); }catch(e){}
+          if(window.__TubeGL && window.__TubeGL.setCrossSection) window.__TubeGL.setCrossSection(v);
+          ctrlRail.querySelectorAll('.ctrl-btn[data-cross]').forEach(x=>x.classList.toggle('spin-on', x.dataset.cross===v));
+        });
+        ctrlRail.appendChild(b);
+      });
+    }
     wireControls(cfg);
   }
 
@@ -1836,6 +1850,8 @@
   const DEG = Math.PI/180;
   let renderer, scene, camera, composer, group, bodyMat, ssao, ready=false, mounted=false, canvas, ro;
   let placeholderTex=null, currentBodyTex=null;
+  let crossSection=(function(){ try{ return localStorage.getItem('tubeCross')||'oval'; }catch(e){ return 'oval'; } })();
+  const ovalZ = ()=> crossSection==='round' ? 1.0 : 0.44;   // 원형=1.0, 타원=0.44
   const cssTube = ()=>document.querySelector('.model3d.m-tube');
 
   /* ---- 텍스처 유틸 ---- */
@@ -1927,8 +1943,8 @@
     const seal=new THREE.Mesh(new THREE.BoxGeometry(1.92,0.5,0.06), sealMat);
     seal.position.y=-1.86; seal.castShadow=true; seal.receiveShadow=true; grp.add(seal);
 
-    // 선크림 튜브 = 타원(장방형) 단면 → 로컬 Z축을 납작하게 (회전은 rotation으로만 적용되어 유지됨)
-    grp.scale.set(1, 1, 0.44);
+    // 단면: 타원(기본) = 로컬 Z축 납작 / 원형 = 1.0 (회전은 rotation으로만 적용되어 유지됨)
+    grp.scale.set(1, 1, ovalZ());
     grp.__cap=cap;
     return grp;
   }
@@ -1947,7 +1963,7 @@
       scene=new THREE.Scene();
       const pmrem=new THREE.PMREMGenerator(renderer);
       scene.environment=pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-      camera=new THREE.PerspectiveCamera(32,1,0.1,100); camera.position.set(0,0,8.2);
+      camera=new THREE.PerspectiveCamera(32,1,0.1,100); camera.position.set(0,0,12.0);  // 다른 모델과 비슷한 크기로 축소
       // key/fill + ambient
       const key=new THREE.DirectionalLight(0xffffff,2.7); key.position.set(3.5,6,5);
       key.castShadow=true; key.shadow.mapSize.set(2048,2048); key.shadow.radius=8; key.shadow.bias=-0.0004;
@@ -1997,6 +2013,9 @@
     },
     hide(){ mounted=false; if(canvas) canvas.style.display='none'; const t=cssTube(); if(t) t.style.visibility=''; if(this._badge&&this._badge.parentNode) this._badge.parentNode.removeChild(this._badge); },
     setRotation(rx,ry){ if(!ready||!group) return; group.rotation.set(rx*DEG, ry*DEG, 0); renderFrame(); },
+    getCrossSection:()=>crossSection,
+    setCrossSection(v){ crossSection=(v==='round')?'round':'oval'; try{localStorage.setItem('tubeCross',crossSection);}catch(e){}
+      if(group){ group.scale.z=ovalZ(); renderFrame(); } },
     setBodyTexture(url){
       if(!ready||!bodyMat) return;
       if(!url){ bodyMat.map=placeholderTex; bodyMat.needsUpdate=true; renderFrame(); return; }
