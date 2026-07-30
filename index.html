@@ -729,7 +729,7 @@
       views:[
         {view:'front', label:'전면', x:-8, y:0},
         {view:'back',  label:'후면', x:-8, y:180},
-        {view:'seal',  label:'실링부(압인)', x:24, y:0, hot:true}
+        {view:'seal',  label:'실링부(압인)', x:-32, y:0, hot:true}
       ],
       grid:[
         {k:'제품명 (국문)', f:'nameKr', hi:true},
@@ -1874,26 +1874,20 @@
     t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=8;
     return t;
   }
-  // 그레이 높이맵 캔버스 → 노멀맵 (톱니 압인 + 날짜 각인 요철)
+  // 그레이 높이맵 → 노멀맵 (상단 크림프 세로 톱니)
   function makeSealNormal(){
-    const w=512,h=256, c=document.createElement('canvas'); c.width=w; c.height=h;
+    const w=512,h=96, c=document.createElement('canvas'); c.width=w; c.height=h;
     const g=c.getContext('2d');
     g.fillStyle='#808080'; g.fillRect(0,0,w,h);
-    // 가로 톱니(크림프 리지)
-    for(let y=0;y<h;y+=10){ g.fillStyle=(Math.floor(y/10)%2)?'#b8b8b8':'#5a5a5a'; g.fillRect(0,y,w,5); }
-    // 날짜 각인(음각처럼 어둡게)
-    g.fillStyle='#3a3a3a'; g.font='700 34px "IBM Plex Mono", monospace'; g.textAlign='center';
-    g.fillText('LOT 00000', w/2, h/2-6);
-    g.fillText('EXP YYYYMMDD', w/2, h/2+34);
-    // 높이맵 → 노멀맵 (sobel)
+    for(let x=0;x<w;x+=8){ g.fillStyle=(Math.floor(x/8)%2)?'#c6c6c6':'#565656'; g.fillRect(x,0,4,h); }
     const src=g.getImageData(0,0,w,h).data;
     const out=g.createImageData(w,h); const O=out.data;
     const at=(x,y)=>{ x=Math.max(0,Math.min(w-1,x)); y=Math.max(0,Math.min(h-1,y)); return src[(y*w+x)*4]/255; };
-    const s=2.0;
+    const s=2.4;
     for(let y=0;y<h;y++)for(let x=0;x<w;x++){
       const dx=(at(x+1,y)-at(x-1,y))*s, dy=(at(x,y+1)-at(x,y-1))*s;
-      let nx=-dx, ny=-dy, nz=1; const len=Math.hypot(nx,ny,nz)||1; nx/=len; ny/=len; nz/=len;
-      const i=(y*w+x)*4; O[i]=(nx*0.5+0.5)*255; O[i+1]=(ny*0.5+0.5)*255; O[i+2]=(nz*0.5+0.5)*255; O[i+3]=255;
+      let nx=-dx, ny=-dy, nz=1; const len=Math.hypot(nx,ny,nz)||1;
+      const i=(y*w+x)*4; O[i]=(nx/len*0.5+0.5)*255; O[i+1]=(ny/len*0.5+0.5)*255; O[i+2]=(nz/len*0.5+0.5)*255; O[i+3]=255;
     }
     g.putImageData(out,0,0);
     const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
@@ -1902,48 +1896,43 @@
   /* ---- 지오메트리 ---- */
   function buildTube(){
     const grp=new THREE.Group();
-    const R=1.0;
-    // 바디+숄더+넥 프로파일 (아래→위)
+    // 테이퍼 스퀴즈 튜브: 위(크림프)가 넓고 캡(아래)으로 갈수록 좁아짐
     const pts=[
-      [0.02,-1.60],[R,-1.60],[R,0.90],
-      [0.96*R,1.12],[0.85*R,1.30],[0.66*R,1.44],[0.44*R,1.52],[0.30,1.56],[0.30,1.66]
+      [0.34,-1.05],[0.34,-0.88],
+      [0.44,-0.72],[0.60,-0.52],[0.75,-0.34],[0.85,-0.10],
+      [0.93,0.45],[1.02,1.15],[1.06,1.45],[1.02,1.58]
     ].map(p=>new THREE.Vector2(p[0],p[1]));
-    const bodyGeo=new THREE.LatheGeometry(pts, 96);
+    const bodyGeo=new THREE.LatheGeometry(pts, 128);
     bodyMat=new THREE.MeshPhysicalMaterial({
-      color:0xffffff, roughness:0.72, metalness:0.0,
-      transmission:0.10, thickness:1.2, ior:1.45, attenuationColor:new THREE.Color(0xeef1ea), attenuationDistance:3.0,
-      clearcoat:0.0, envMapIntensity:1.2
+      color:0xffffff, roughness:0.5, metalness:0.0,
+      transmission:0.05, thickness:1.0, ior:1.45, attenuationColor:new THREE.Color(0xeef1ea), attenuationDistance:4.0,
+      clearcoat:0.15, clearcoatRoughness:0.5, envMapIntensity:1.2
     });
     placeholderTex=makePlaceholderTexture(); bodyMat.map=placeholderTex;
     const body=new THREE.Mesh(bodyGeo, bodyMat); body.castShadow=true; body.receiveShadow=true; grp.add(body);
 
-    // 넥 나사부(살짝 진한 링)
-    const neckMat=new THREE.MeshPhysicalMaterial({color:0xe7e9e2, roughness:0.6, metalness:0});
-    const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.30,0.12,48), neckMat);
-    neck.position.y=1.60; neck.castShadow=true; grp.add(neck);
+    // 상단 크림프 실링(세로 톱니)
+    const sealMat=new THREE.MeshStandardMaterial({color:0xf2f3ef, roughness:0.6, metalness:0, normalMap:makeSealNormal()});
+    sealMat.normalScale=new THREE.Vector2(0.9,0.9);
+    const seal=new THREE.Mesh(new THREE.BoxGeometry(2.04,0.32,0.05), sealMat);
+    seal.position.y=1.72; seal.castShadow=true; seal.receiveShadow=true; grp.add(seal);
 
-    // 플립탑 캡: 본체 + 돔 + 힌지 + 노즐 (선크림 흰색 캡)
-    const capMat=new THREE.MeshPhysicalMaterial({color:0xeef1f4, roughness:0.45, metalness:0, clearcoat:0.25, clearcoatRoughness:0.4});
+    // 하단 캡(세워짐) — 흰색 + 오벌 넙(엄지 홈)
+    const capMat=new THREE.MeshPhysicalMaterial({color:0xf3f4f2, roughness:0.4, metalness:0, clearcoat:0.3, clearcoatRoughness:0.35});
     const cap=new THREE.Group();
-    const capBody=new THREE.Mesh(new THREE.CylinderGeometry(0.36,0.34,0.46,48), capMat);
-    capBody.position.y=1.66+0.23; capBody.castShadow=true; cap.add(capBody);
-    const capTop=new THREE.Mesh(new THREE.SphereGeometry(0.36,40,20,0,Math.PI*2,0,Math.PI/2), capMat);
-    capTop.position.y=1.66+0.46; capTop.scale.y=0.5; capTop.castShadow=true; cap.add(capTop);
-    // 힌지(뒤) + 노즐(앞)
-    const hinge=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.10,0.08), capMat);
-    hinge.position.set(0,1.66+0.44,-0.34); cap.add(hinge);
-    const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.14,24), capMat);
-    nozzle.position.set(0,1.66+0.56,0.16); cap.add(nozzle);
+    const capBody=new THREE.Mesh(new THREE.CylinderGeometry(0.40,0.42,0.50,64), capMat);
+    capBody.position.y=-1.30; capBody.castShadow=true; capBody.receiveShadow=true; cap.add(capBody);
+    const capBase=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.40,0.05,64), capMat);
+    capBase.position.y=-1.55; cap.add(capBase);
+    const nub=new THREE.Mesh(new THREE.SphereGeometry(0.12,24,16), capMat);
+    nub.scale.set(1.7,1.1,0.55); nub.position.set(0,-1.30,0.40); cap.add(nub);
+    // 넥(캡~바디 사이 얇은 링)
+    const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.335,0.335,0.12,48),
+      new THREE.MeshPhysicalMaterial({color:0xeceee9, roughness:0.5, metalness:0}));
+    neck.position.y=-0.98; cap.add(neck);
     grp.add(cap);
 
-    // 하단 핀시일(크림프) — 얇은 판 + 톱니/각인 노멀맵
-    const sealNormal=makeSealNormal();
-    const sealMat=new THREE.MeshStandardMaterial({color:0xe7e9e2, roughness:0.8, metalness:0, normalMap:sealNormal});
-    sealMat.normalScale=new THREE.Vector2(1.1,1.1);
-    const seal=new THREE.Mesh(new THREE.BoxGeometry(1.92,0.5,0.06), sealMat);
-    seal.position.y=-1.86; seal.castShadow=true; seal.receiveShadow=true; grp.add(seal);
-
-    // 단면: 타원(기본) = 로컬 Z축 납작 / 원형 = 1.0 (회전은 rotation으로만 적용되어 유지됨)
+    // 단면: 타원(기본) 로컬 Z 납작 / 원형=1.0
     grp.scale.set(1, 1, ovalZ());
     grp.__cap=cap;
     return grp;
@@ -1974,7 +1963,7 @@
       scene.add(new THREE.AmbientLight(0xffffff,0.12));
       // 바닥 섀도우 캐처
       const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60), new THREE.ShadowMaterial({opacity:0.16}));
-      ground.rotation.x=-Math.PI/2; ground.position.y=-2.15; ground.receiveShadow=true; scene.add(ground);
+      ground.rotation.x=-Math.PI/2; ground.position.y=-1.60; ground.receiveShadow=true; scene.add(ground);
       group=buildTube(); scene.add(group);
       // 후처리
       composer=new EffectComposer(renderer);
