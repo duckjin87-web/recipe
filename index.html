@@ -1422,40 +1422,48 @@
       const cross=(localStorage.getItem('tubeCross')||'oval');
       const name=(get('nameKr')||get('nameEn')||'').trim();
       const vol=(get('fillVol')||get('volume')||'').trim();
-      const topW = cross==='round'?182:214;
-      const xL0=(200-topW/2), xR0=(200+topW/2);
-      const bodyPath='M'+xL0+',70 C'+(xL0-4)+',212 146,352 152,452 L248,452 C254,352 '+(xR0+4)+',212 '+xR0+',70 Z';
-      let teeth=''; for(let x=xL0+5;x<=xR0-5;x+=5) teeth+='<line x1="'+x.toFixed(1)+'" y1="49" x2="'+x.toFixed(1)+'" y2="67" stroke="#b7bcc6" stroke-width="1.3"/>';
+      const sc = cross==='round'?0.88:1.0;          // 원형=살짝 좁게
+      const X = dx => (200+dx*sc).toFixed(1);
+      // 실루엣: 거의 곧은 바디(아주 살짝 배럴) + 하단 숄더 인 + 바디보다 좁은 캡
+      const body='M'+X(-104)+',74 '
+        +'C'+X(-108)+',180 '+X(-106)+',330 '+X(-98)+',406 '
+        +'C'+X(-90)+',446 '+X(-76)+',466 '+X(-58)+',470 '
+        +'L'+X(58)+',470 '
+        +'C'+X(76)+',466 '+X(90)+',446 '+X(98)+',406 '
+        +'C'+X(106)+',330 '+X(108)+',180 '+X(104)+',74 Z';
+      let teeth=''; for(let dx=-99;dx<=99;dx+=4.6) teeth+='<line x1="'+X(dx)+'" y1="50" x2="'+X(dx)+'" y2="70" stroke="#b4b9c3" stroke-width="1.1"/>';
       let design='';
       if(photo){
-        design='<image href="'+photo+'" x="'+xL0+'" y="70" width="'+topW+'" height="382" preserveAspectRatio="xMidYMid slice" clip-path="url(#tbClip)"/>';
+        design='<image href="'+photo+'" x="'+X(-104)+'" y="74" width="'+(208*sc).toFixed(1)+'" height="396" preserveAspectRatio="xMidYMid slice" clip-path="url(#tbClip)"/>';
       } else {
         const lines=nameLines(name); const maxlen=Math.max(1,...lines.map(l=>l.length));
-        const fs= maxlen<=7?27: maxlen<=11?22: maxlen<=15?18:16;
-        const ty=238-(lines.length-1)*(fs+5)/2;
-        design='<rect x="166" y="150" width="68" height="8" rx="4" fill="#3f6fb0"/>';
-        lines.forEach((l,i)=>{ design+='<text x="200" y="'+(ty+i*(fs+5)).toFixed(0)+'" text-anchor="middle" font-family="\'Noto Sans KR\',sans-serif" font-weight="800" font-size="'+fs+'" fill="#26313b">'+esc(l)+'</text>'; });
-        const ry=ty+(lines.length-1)*(fs+5)+30;
-        design+='<line x1="152" y1="'+ry.toFixed(0)+'" x2="248" y2="'+ry.toFixed(0)+'" stroke="#cdd6de" stroke-width="1.5"/>';
-        if(vol) design+='<text x="200" y="'+(ry+30).toFixed(0)+'" text-anchor="middle" font-family="\'IBM Plex Mono\',monospace" font-weight="600" font-size="20" fill="#5c6b74">'+esc(vol)+'</text>';
+        const fs= maxlen<=7?26: maxlen<=11?21: maxlen<=15?18:16;
+        const ty=248-(lines.length-1)*(fs+5)/2;
+        design='<rect x="'+X(-34)+'" y="164" width="'+(68*sc).toFixed(0)+'" height="7" rx="3.5" fill="#3f6fb0"/>';
+        lines.forEach((l,i)=>{ design+='<text x="200" y="'+(ty+i*(fs+5)).toFixed(0)+'" text-anchor="middle" font-family="\'Noto Sans KR\',sans-serif" font-weight="800" font-size="'+fs+'" fill="#2a3540">'+esc(l)+'</text>'; });
+        const ry=ty+(lines.length-1)*(fs+5)+28;
+        design+='<line x1="'+X(-46)+'" y1="'+ry.toFixed(0)+'" x2="'+X(46)+'" y2="'+ry.toFixed(0)+'" stroke="#cdd6de" stroke-width="1.4"/>';
+        if(vol) design+='<text x="200" y="'+(ry+28).toFixed(0)+'" text-anchor="middle" font-family="\'IBM Plex Mono\',monospace" font-weight="600" font-size="19" fill="#5c6b74">'+esc(vol)+'</text>';
       }
-      return '<svg viewBox="0 0 400 540" width="auto" height="94%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%;">'
+      return '<svg viewBox="0 0 400 560" width="auto" height="92%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%;">'
         +'<defs>'
-        +'<linearGradient id="tbBodyG" x1="0" x2="1"><stop offset="0" stop-color="#c8ccd4"/><stop offset="0.16" stop-color="#eef1f4"/><stop offset="0.4" stop-color="#ffffff"/><stop offset="0.52" stop-color="#fbfcfd"/><stop offset="0.84" stop-color="#e4e8ee"/><stop offset="1" stop-color="#c4c9d2"/></linearGradient>'
-        +'<linearGradient id="tbCapG" x1="0" x2="1"><stop offset="0" stop-color="#d3d6db"/><stop offset="0.25" stop-color="#ffffff"/><stop offset="0.55" stop-color="#f4f6f8"/><stop offset="1" stop-color="#cfd3d9"/></linearGradient>'
-        +'<linearGradient id="tbCrimpG" x1="0" x2="1"><stop offset="0" stop-color="#d8dbe1"/><stop offset="0.5" stop-color="#edeff3"/><stop offset="1" stop-color="#d8dbe1"/></linearGradient>'
-        +'<radialGradient id="tbNubG"><stop offset="0" stop-color="#eef0f3"/><stop offset="1" stop-color="#d2d6dc"/></radialGradient>'
-        +'<clipPath id="tbClip"><path d="'+bodyPath+'"/></clipPath>'
+        +'<linearGradient id="tbBodyG" x1="0" x2="1"><stop offset="0" stop-color="#c6cbd3"/><stop offset="0.14" stop-color="#edf0f3"/><stop offset="0.36" stop-color="#ffffff"/><stop offset="0.5" stop-color="#ffffff"/><stop offset="0.66" stop-color="#f4f6f9"/><stop offset="0.86" stop-color="#dfe4ea"/><stop offset="1" stop-color="#c2c7d1"/></linearGradient>'
+        +'<linearGradient id="tbCapG" x1="0" x2="1"><stop offset="0" stop-color="#d0d4da"/><stop offset="0.28" stop-color="#ffffff"/><stop offset="0.58" stop-color="#f2f4f7"/><stop offset="1" stop-color="#ccd0d7"/></linearGradient>'
+        +'<linearGradient id="tbCrimpG" x1="0" x2="1"><stop offset="0" stop-color="#d6d9df"/><stop offset="0.5" stop-color="#eceef2"/><stop offset="1" stop-color="#d6d9df"/></linearGradient>'
+        +'<radialGradient id="tbNubG" cx="0.5" cy="0.42"><stop offset="0" stop-color="#e2e5ea"/><stop offset="1" stop-color="#eef0f3"/></radialGradient>'
+        +'<clipPath id="tbClip"><path d="'+body+'"/></clipPath>'
         +'<filter id="tbBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>'
         +'</defs>'
-        +'<ellipse cx="200" cy="524" rx="132" ry="12" fill="#000" opacity="0.12" filter="url(#tbBlur)"/>'
-        +'<rect x="146" y="456" width="108" height="12" rx="4" fill="#c9ccd2"/>'
-        +'<rect x="150" y="462" width="100" height="60" rx="12" fill="url(#tbCapG)" stroke="#c4c8ce" stroke-width="0.8"/>'
-        +'<ellipse cx="200" cy="496" rx="26" ry="16" fill="url(#tbNubG)" stroke="#c4c8ce" stroke-width="0.6"/>'
-        +'<rect x="164" y="444" width="72" height="14" rx="3" fill="#e7e9ee"/>'
-        +'<path d="'+bodyPath+'" fill="url(#tbBodyG)" stroke="#c2c7d0" stroke-width="0.8"/>'
-        +'<g clip-path="url(#tbClip)"><ellipse cx="'+(200-topW*0.17).toFixed(0)+'" cy="240" rx="20" ry="160" fill="#ffffff" opacity="0.5" filter="url(#tbBlur)"/></g>'
-        +'<rect x="'+xL0+'" y="44" width="'+topW+'" height="26" rx="7" fill="url(#tbCrimpG)" stroke="#c4c8ce" stroke-width="0.8"/>'
+        +'<ellipse cx="200" cy="536" rx="'+(118*sc).toFixed(0)+'" ry="11" fill="#000" opacity="0.12" filter="url(#tbBlur)"/>'
+        +'<rect x="'+X(-82)+'" y="462" width="'+(164*sc).toFixed(1)+'" height="10" rx="4" fill="#c7cad0"/>'
+        +'<rect x="'+X(-78)+'" y="470" width="'+(156*sc).toFixed(1)+'" height="60" rx="13" fill="url(#tbCapG)" stroke="#c2c6cc" stroke-width="0.8"/>'
+        +'<ellipse cx="200" cy="502" rx="'+(24*sc).toFixed(0)+'" ry="14" fill="url(#tbNubG)" stroke="#c6cad0" stroke-width="0.8"/>'
+        +'<path d="'+body+'" fill="url(#tbBodyG)" stroke="#c0c5cf" stroke-width="0.8"/>'
+        +'<g clip-path="url(#tbClip)">'
+          +'<ellipse cx="'+X(-46)+'" cy="255" rx="18" ry="180" fill="#ffffff" opacity="0.55" filter="url(#tbBlur)"/>'
+          +'<ellipse cx="'+X(80)+'" cy="255" rx="8" ry="185" fill="#ffffff" opacity="0.28" filter="url(#tbBlur)"/>'
+        +'</g>'
+        +'<rect x="'+X(-103)+'" y="46" width="'+(206*sc).toFixed(1)+'" height="27" rx="7" fill="url(#tbCrimpG)" stroke="#c2c6cc" stroke-width="0.8"/>'
         +'<g>'+teeth+'</g>'
         +design
         +'</svg>';
