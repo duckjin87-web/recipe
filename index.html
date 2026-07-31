@@ -1422,16 +1422,16 @@
       const cross=(localStorage.getItem('tubeCross')||'oval');
       const name=(get('nameKr')||get('nameEn')||'').trim();
       const vol=(get('fillVol')||get('volume')||'').trim();
-      const sc = cross==='round'?0.88:1.0;          // 원형=살짝 좁게
+      const sc = cross==='round'?0.86:1.0;          // 원형=살짝 좁게
       const X = dx => (200+dx*sc).toFixed(1);
-      // 실루엣: 거의 곧은 바디(아주 살짝 배럴) + 하단 숄더 인 + 바디보다 좁은 캡
-      const body='M'+X(-104)+',74 '
-        +'C'+X(-108)+',180 '+X(-106)+',330 '+X(-98)+',406 '
-        +'C'+X(-90)+',446 '+X(-76)+',466 '+X(-58)+',470 '
-        +'L'+X(58)+',470 '
-        +'C'+X(76)+',466 '+X(90)+',446 '+X(98)+',406 '
-        +'C'+X(106)+',330 '+X(108)+',180 '+X(104)+',74 Z';
-      let teeth=''; for(let dx=-99;dx<=99;dx+=4.6) teeth+='<line x1="'+X(dx)+'" y1="50" x2="'+X(dx)+'" y2="70" stroke="#b4b9c3" stroke-width="1.1"/>';
+      // 실루엣(레퍼런스): 위(크림프) 넓고 아래로 완만히 좁아지는 테이퍼 + 캡 거의 flush
+      const body='M'+X(-107)+',74 '
+        +'C'+X(-111)+',200 '+X(-103)+',352 '+X(-93)+',442 '
+        +'C'+X(-91)+',449 '+X(-85)+',452 '+X(-78)+',452 '
+        +'L'+X(78)+',452 '
+        +'C'+X(85)+',452 '+X(91)+',449 '+X(93)+',442 '
+        +'C'+X(103)+',352 '+X(111)+',200 '+X(107)+',74 Z';
+      let teeth=''; for(let dx=-100;dx<=100;dx+=4.5) teeth+='<line x1="'+X(dx)+'" y1="50" x2="'+X(dx)+'" y2="70" stroke="#b4b9c3" stroke-width="1.1"/>';
       let design='';
       if(photo){
         design='<image href="'+photo+'" x="'+X(-104)+'" y="74" width="'+(208*sc).toFixed(1)+'" height="396" preserveAspectRatio="xMidYMid slice" clip-path="url(#tbClip)"/>';
@@ -1454,16 +1454,16 @@
         +'<clipPath id="tbClip"><path d="'+body+'"/></clipPath>'
         +'<filter id="tbBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>'
         +'</defs>'
-        +'<ellipse cx="200" cy="536" rx="'+(118*sc).toFixed(0)+'" ry="11" fill="#000" opacity="0.12" filter="url(#tbBlur)"/>'
-        +'<rect x="'+X(-82)+'" y="462" width="'+(164*sc).toFixed(1)+'" height="10" rx="4" fill="#c7cad0"/>'
-        +'<rect x="'+X(-78)+'" y="470" width="'+(156*sc).toFixed(1)+'" height="60" rx="13" fill="url(#tbCapG)" stroke="#c2c6cc" stroke-width="0.8"/>'
-        +'<ellipse cx="200" cy="502" rx="'+(24*sc).toFixed(0)+'" ry="14" fill="url(#tbNubG)" stroke="#c6cad0" stroke-width="0.8"/>'
+        +'<ellipse cx="200" cy="528" rx="'+(112*sc).toFixed(0)+'" ry="11" fill="#000" opacity="0.12" filter="url(#tbBlur)"/>'
+        +'<rect x="'+X(-86)+'" y="446" width="'+(172*sc).toFixed(1)+'" height="11" rx="4" fill="#c7cad0"/>'
+        +'<rect x="'+X(-82)+'" y="454" width="'+(164*sc).toFixed(1)+'" height="66" rx="13" fill="url(#tbCapG)" stroke="#c2c6cc" stroke-width="0.8"/>'
+        +'<ellipse cx="200" cy="500" rx="'+(22*sc).toFixed(0)+'" ry="13" fill="url(#tbNubG)" stroke="#c6cad0" stroke-width="0.8"/>'
         +'<path d="'+body+'" fill="url(#tbBodyG)" stroke="#c0c5cf" stroke-width="0.8"/>'
         +'<g clip-path="url(#tbClip)">'
-          +'<ellipse cx="'+X(-46)+'" cy="255" rx="18" ry="180" fill="#ffffff" opacity="0.55" filter="url(#tbBlur)"/>'
-          +'<ellipse cx="'+X(80)+'" cy="255" rx="8" ry="185" fill="#ffffff" opacity="0.28" filter="url(#tbBlur)"/>'
+          +'<ellipse cx="'+X(-44)+'" cy="250" rx="18" ry="180" fill="#ffffff" opacity="0.55" filter="url(#tbBlur)"/>'
+          +'<ellipse cx="'+X(82)+'" cy="250" rx="8" ry="185" fill="#ffffff" opacity="0.26" filter="url(#tbBlur)"/>'
         +'</g>'
-        +'<rect x="'+X(-103)+'" y="46" width="'+(206*sc).toFixed(1)+'" height="27" rx="7" fill="url(#tbCrimpG)" stroke="#c2c6cc" stroke-width="0.8"/>'
+        +'<rect x="'+X(-104)+'" y="46" width="'+(208*sc).toFixed(1)+'" height="27" rx="7" fill="url(#tbCrimpG)" stroke="#c2c6cc" stroke-width="0.8"/>'
         +'<g>'+teeth+'</g>'
         +design
         +'</svg>';
