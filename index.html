@@ -6,13 +6,6 @@
 <title>포장사양서 실물대조 · 범용 뷰어</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-<!-- three.js (튜브 WebGL PBR 뷰어). CDN 차단 시 자동으로 CSS 3D 튜브로 폴백됩니다. -->
-<script type="importmap">
-{"imports":{
-  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
-  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
-}}
-</script>
 <style>
   :root{
     --paper:#f4f4f0; --ink:#191a16; --ink-soft:#5c5d55;
@@ -1097,11 +1090,8 @@
   }
   function get(f){ return state[f] || ''; }
 
-  // 제품명(국문)을 튜브 바디 인쇄로 반영
-  function updateTubePrint(){
-    if(currentType==='tube' && window.__TubeGL && window.__TubeGL.setPrintText)
-      window.__TubeGL.setPrintText(get('nameKr')||get('nameEn'), get('fillVol')||get('volume'));
-  }
+  // 제품명(국문)을 튜브 목업 인쇄로 반영
+  function updateTubePrint(){ if(currentType==='tube') TubeMock.render(); }
 
   // 제품명 키워드로 용기/튜브 추정 (참고용 힌트 — 자재번호 판별을 덮어쓰지 않음)
   function guessTypeFromName(){
@@ -1420,8 +1410,82 @@
       (box>0?' × 1단 <b>'+box+'BOX</b> = 총 <b>'+(box*tier).toLocaleString()+'BOX</b>':' · 1단 BOX 수 입력 시 총량 계산');
   }
 
+  /* ===== 튜브 정면 실사 목업 (SVG 합성) ===== */
+  const TubeMock=(function(){
+    let host=null, photo=null;
+    function ensure(){ if(host) return host; host=document.createElement('div'); host.id='tubeMock';
+      host.style.cssText='position:absolute;inset:0;z-index:1;display:none;align-items:center;justify-content:center;pointer-events:none;'; return host; }
+    function nameLines(name){ if(!name) return []; if(name.length<=9) return [name];
+      const w=name.split(/\s+/); if(w.length>1){ const m=Math.ceil(w.length/2); return [w.slice(0,m).join(' '), w.slice(m).join(' ')]; }
+      const h=Math.ceil(name.length/2); return [name.slice(0,h), name.slice(h)]; }
+    function svg(){
+      const cross=(localStorage.getItem('tubeCross')||'oval');
+      const name=(get('nameKr')||get('nameEn')||'').trim();
+      const vol=(get('fillVol')||get('volume')||'').trim();
+      const topW = cross==='round'?182:214;
+      const xL0=(200-topW/2), xR0=(200+topW/2);
+      const bodyPath='M'+xL0+',70 C'+(xL0-4)+',212 146,352 152,452 L248,452 C254,352 '+(xR0+4)+',212 '+xR0+',70 Z';
+      let teeth=''; for(let x=xL0+5;x<=xR0-5;x+=5) teeth+='<line x1="'+x.toFixed(1)+'" y1="49" x2="'+x.toFixed(1)+'" y2="67" stroke="#b7bcc6" stroke-width="1.3"/>';
+      let design='';
+      if(photo){
+        design='<image href="'+photo+'" x="'+xL0+'" y="70" width="'+topW+'" height="382" preserveAspectRatio="xMidYMid slice" clip-path="url(#tbClip)"/>';
+      } else {
+        const lines=nameLines(name); const maxlen=Math.max(1,...lines.map(l=>l.length));
+        const fs= maxlen<=7?27: maxlen<=11?22: maxlen<=15?18:16;
+        const ty=238-(lines.length-1)*(fs+5)/2;
+        design='<rect x="166" y="150" width="68" height="8" rx="4" fill="#3f6fb0"/>';
+        lines.forEach((l,i)=>{ design+='<text x="200" y="'+(ty+i*(fs+5)).toFixed(0)+'" text-anchor="middle" font-family="\'Noto Sans KR\',sans-serif" font-weight="800" font-size="'+fs+'" fill="#26313b">'+esc(l)+'</text>'; });
+        const ry=ty+(lines.length-1)*(fs+5)+30;
+        design+='<line x1="152" y1="'+ry.toFixed(0)+'" x2="248" y2="'+ry.toFixed(0)+'" stroke="#cdd6de" stroke-width="1.5"/>';
+        if(vol) design+='<text x="200" y="'+(ry+30).toFixed(0)+'" text-anchor="middle" font-family="\'IBM Plex Mono\',monospace" font-weight="600" font-size="20" fill="#5c6b74">'+esc(vol)+'</text>';
+      }
+      return '<svg viewBox="0 0 400 540" width="auto" height="94%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%;">'
+        +'<defs>'
+        +'<linearGradient id="tbBodyG" x1="0" x2="1"><stop offset="0" stop-color="#c8ccd4"/><stop offset="0.16" stop-color="#eef1f4"/><stop offset="0.4" stop-color="#ffffff"/><stop offset="0.52" stop-color="#fbfcfd"/><stop offset="0.84" stop-color="#e4e8ee"/><stop offset="1" stop-color="#c4c9d2"/></linearGradient>'
+        +'<linearGradient id="tbCapG" x1="0" x2="1"><stop offset="0" stop-color="#d3d6db"/><stop offset="0.25" stop-color="#ffffff"/><stop offset="0.55" stop-color="#f4f6f8"/><stop offset="1" stop-color="#cfd3d9"/></linearGradient>'
+        +'<linearGradient id="tbCrimpG" x1="0" x2="1"><stop offset="0" stop-color="#d8dbe1"/><stop offset="0.5" stop-color="#edeff3"/><stop offset="1" stop-color="#d8dbe1"/></linearGradient>'
+        +'<radialGradient id="tbNubG"><stop offset="0" stop-color="#eef0f3"/><stop offset="1" stop-color="#d2d6dc"/></radialGradient>'
+        +'<clipPath id="tbClip"><path d="'+bodyPath+'"/></clipPath>'
+        +'<filter id="tbBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>'
+        +'</defs>'
+        +'<ellipse cx="200" cy="524" rx="132" ry="12" fill="#000" opacity="0.12" filter="url(#tbBlur)"/>'
+        +'<rect x="146" y="456" width="108" height="12" rx="4" fill="#c9ccd2"/>'
+        +'<rect x="150" y="462" width="100" height="60" rx="12" fill="url(#tbCapG)" stroke="#c4c8ce" stroke-width="0.8"/>'
+        +'<ellipse cx="200" cy="496" rx="26" ry="16" fill="url(#tbNubG)" stroke="#c4c8ce" stroke-width="0.6"/>'
+        +'<rect x="164" y="444" width="72" height="14" rx="3" fill="#e7e9ee"/>'
+        +'<path d="'+bodyPath+'" fill="url(#tbBodyG)" stroke="#c2c7d0" stroke-width="0.8"/>'
+        +'<g clip-path="url(#tbClip)"><ellipse cx="'+(200-topW*0.17).toFixed(0)+'" cy="240" rx="20" ry="160" fill="#ffffff" opacity="0.5" filter="url(#tbBlur)"/></g>'
+        +'<rect x="'+xL0+'" y="44" width="'+topW+'" height="26" rx="7" fill="url(#tbCrimpG)" stroke="#c4c8ce" stroke-width="0.8"/>'
+        +'<g>'+teeth+'</g>'
+        +design
+        +'</svg>';
+    }
+    return {
+      show(stageEl){ stageEl=stageEl||document.getElementById('stage'); const e=ensure(); if(e.parentNode!==stageEl) stageEl.appendChild(e); e.style.display='flex'; this.render(); },
+      hide(){ if(host) host.style.display='none'; },
+      setPhoto(url){ photo=url; this.render(); },
+      render(){ if(host && host.style.display!=='none') host.innerHTML=svg(); }
+    };
+  })();
+
   function renderControls(cfg){
     ctrlRail.innerHTML='';
+    // 튜브는 정면 실사 목업(2D) → 회전 버튼 없이 단면(원형/타원) 토글만
+    if(currentType==='tube'){
+      const cur=(localStorage.getItem('tubeCross')||'oval');
+      [['oval','타원'],['round','원형']].forEach(([v,label])=>{
+        const b=el('ctrl-btn'+(cur===v?' spin-on':'')); b.textContent='단면 '+label; b.dataset.cross=v;
+        b.addEventListener('click', ()=>{
+          try{ localStorage.setItem('tubeCross', v); }catch(e){}
+          ctrlRail.querySelectorAll('.ctrl-btn[data-cross]').forEach(x=>x.classList.toggle('spin-on', x.dataset.cross===v));
+          TubeMock.render();
+        });
+        ctrlRail.appendChild(b);
+      });
+      const note=el('ctrl-btn'); note.style.cssText='border:none;background:none;color:var(--ink-soft);cursor:default;'; note.textContent='정면 실사 목업';
+      ctrlRail.appendChild(note);
+      return;
+    }
     cfg.views.forEach(v=>{
       const b = el('ctrl-btn'+(v.hot?' hot':''));
       b.textContent = v.label;
@@ -1430,20 +1494,6 @@
     });
     const spin = el('ctrl-btn'); spin.id='spinBtn'; spin.textContent='자동회전';
     ctrlRail.appendChild(spin);
-    // 튜브 전용: 단면(원형/타원) 토글
-    if(currentType==='tube'){
-      const cur = (window.__TubeGL && window.__TubeGL.getCrossSection && window.__TubeGL.getCrossSection())
-                  || (localStorage.getItem('tubeCross')||'oval');
-      [['oval','타원'],['round','원형']].forEach(([v,label])=>{
-        const b=el('ctrl-btn'+(cur===v?' spin-on':'')); b.textContent='단면 '+label; b.dataset.cross=v;
-        b.addEventListener('click', ()=>{
-          try{ localStorage.setItem('tubeCross', v); }catch(e){}
-          if(window.__TubeGL && window.__TubeGL.setCrossSection) window.__TubeGL.setCrossSection(v);
-          ctrlRail.querySelectorAll('.ctrl-btn[data-cross]').forEach(x=>x.classList.toggle('spin-on', x.dataset.cross===v));
-        });
-        ctrlRail.appendChild(b);
-      });
-    }
     wireControls(cfg);
   }
 
@@ -1455,9 +1505,7 @@
   let viewMap = {};
 
   function activeModel(){ return modelHold.querySelector('.model3d.active'); }
-  function apply(){ const m=activeModel(); if(m) m.style.transform='rotateX('+rx+'deg) rotateY('+ry+'deg)';
-    window.__viewerRot={rx,ry};
-    if(currentType==='tube' && window.__TubeGL) window.__TubeGL.setRotation(rx, ry); }
+  function apply(){ const m=activeModel(); if(m) m.style.transform='rotateX('+rx+'deg) rotateY('+ry+'deg)'; }
 
   function startDrag(x,y){ dragging=true; lx=x; ly=y; const m=activeModel(); if(m)m.classList.remove('snap'); stopSpin(); }
   function moveDrag(x,y){ if(!dragging)return; ry+=(x-lx)*0.45; rx-=(y-ly)*0.45; rx=Math.max(-110,Math.min(110,rx)); lx=x; ly=y; apply(); }
@@ -1505,10 +1553,8 @@
   function applyPhoto(faceKey, dataUrl, itemId, appliedMap){
     Object.keys(appliedMap).forEach(k=>{ if(appliedMap[k]===itemId) clearFace(k, appliedMap); });
     if(faceKey==='none') return;
-    // 튜브 WebGL 활성 시: 사진을 바디 인쇄 텍스처로 매핑
-    if(currentType==='tube' && window.__TubeGL && window.__TubeGL.isReady()){
-      window.__TubeGL.setBodyTexture(dataUrl); appliedMap[faceKey]=itemId; updateShapeBadge(); return;
-    }
+    // 튜브 목업: 사진을 바디에 합성
+    if(currentType==='tube'){ TubeMock.setPhoto(dataUrl); appliedMap[faceKey]=itemId; updateShapeBadge(); return; }
     if(appliedMap[faceKey]) clearFace(faceKey, appliedMap);
     const face = faceEl(faceKey); if(!face) return;
     face.classList.add('has-photo');
@@ -1523,7 +1569,7 @@
     updateShapeBadge();
   }
   function clearFace(faceKey, appliedMap){
-    if(currentType==='tube' && window.__TubeGL && window.__TubeGL.isReady()){ window.__TubeGL.setBodyTexture(null); delete appliedMap[faceKey]; updateShapeBadge(); return; }
+    if(currentType==='tube'){ TubeMock.setPhoto(null); delete appliedMap[faceKey]; updateShapeBadge(); return; }
     const face = faceEl(faceKey); if(face){ face.classList.remove('has-photo'); face.querySelectorAll('.photo-fill,.imprint-overlay').forEach(e=>e.remove()); }
     delete appliedMap[faceKey];
     updateShapeBadge();
@@ -1699,9 +1745,10 @@
     // active model
     Object.values(MODELS).forEach(m=>m.classList.remove('active','snap'));
     MODELS[t].classList.add('active');
-    // 튜브: WebGL(PBR) 뷰어로 대체 · 그 외 유형은 CSS 3D
-    window.__viewerType=t;
-    if(window.__TubeGL){ if(t==='tube'){ window.__TubeGL.show(stage); updateTubePrint(); } else window.__TubeGL.hide(); }
+    // 튜브: 정면 실사 목업(SVG)로 대체 · 그 외 유형은 CSS 3D
+    const hint=document.querySelector('.stage-hint');
+    if(t==='tube'){ MODELS.tube.style.visibility='hidden'; TubeMock.show(stage); if(hint) hint.style.display='none'; }
+    else { MODELS.tube.style.visibility=''; TubeMock.hide(); if(hint) hint.style.display=''; }
     // labels + sections
     stageLabel.textContent = cfg.stageLabel;
     viewerTitle.textContent = cfg.viewerTitle;
@@ -1870,220 +1917,5 @@
 })();
 </script>
 
-<!-- ===== TUBE WebGL (PBR) VIEWER ===== -->
-<script type="module">
-/* '튜브' 유형 전용 Three.js PBR 뷰어.
-   - 지오메트리: Lathe(원통 바디 + 둥근 숄더 + 넥) + 플립탑 캡 + 하단 핀시일(톱니)
-   - 재질: 무광 소프트터치(roughness .72, metalness 0, 약한 transmission)
-   - 조명: RoomEnvironment IBL + key/fill + 소프트섀도우
-   - 후처리: ACES 톤매핑 + SSAO + SMAA(AA)
-   - 압인/각인: 핀시일 노멀맵 요철
-   - 회전/스냅/자동회전은 기존 rx·ry(window.__viewerRot)로 구동, 착인면 버튼 그대로 연동
-   - 로드/WebGL 실패 시 조용히 종료 → 기존 CSS 튜브가 폴백으로 표시됨 */
-(async function(){
-  let THREE, RoomEnvironment, EffectComposer, RenderPass, SSAOPass, SMAAPass, OutputPass;
-  try{
-    THREE = await import('three');
-    ({ RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js'));
-    ({ EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js'));
-    ({ RenderPass }     = await import('three/addons/postprocessing/RenderPass.js'));
-    ({ SSAOPass }       = await import('three/addons/postprocessing/SSAOPass.js'));
-    ({ SMAAPass }       = await import('three/addons/postprocessing/SMAAPass.js'));
-    ({ OutputPass }     = await import('three/addons/postprocessing/OutputPass.js'));
-  }catch(e){ console.warn('[TubeGL] three.js 로드 실패 → CSS 튜브 폴백:', e.message); return; }
-
-  const DEG = Math.PI/180;
-  let renderer, scene, camera, composer, group, bodyMat, ssao, ready=false, mounted=false, canvas, ro;
-  let placeholderTex=null, currentBodyTex=null;
-  let crossSection=(function(){ try{ return localStorage.getItem('tubeCross')||'oval'; }catch(e){ return 'oval'; } })();
-  const ovalZ = ()=> crossSection==='round' ? 1.0 : 0.44;   // 원형=1.0, 타원=0.44
-  let printInfo={name:'', vol:''};   // 제품명 기반 바디 인쇄
-  const cssTube = ()=>document.querySelector('.model3d.m-tube');
-
-  /* ---- 텍스처 유틸 ---- */
-  function fitFont(g, text, weight, family, maxW, start){
-    let s=start; do{ g.font=weight+' '+s+'px '+family; if(g.measureText(text).width<=maxW) break; s-=2; }while(s>12); return s;
-  }
-  function makePlaceholderTexture(){
-    const c=document.createElement('canvas'); c.width=1024; c.height=512;
-    const g=c.getContext('2d');
-    const lg=g.createLinearGradient(0,0,0,512); lg.addColorStop(0,'#ffffff'); lg.addColorStop(1,'#eef2f5');
-    g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
-    g.save(); g.translate(c.width*0.5, c.height*0.5); g.textAlign='center';
-    const name=(printInfo.name||'').trim(), vol=(printInfo.vol||'').trim();
-    if(name){
-      // 제품명 기반 인쇄 (긴 이름은 최대 2줄로 줄바꿈)
-      g.fillStyle='#3f6fb0'; g.fillRect(-70,-150,140,10);
-      const words=name.split(/\s+/); let l1=name, l2='';
-      if(name.length>10 && words.length>1){ const mid=Math.ceil(words.length/2); l1=words.slice(0,mid).join(' '); l2=words.slice(mid).join(' '); }
-      const fs=fitFont(g, l1.length>=l2.length?l1:l2, '800', '"Noto Sans KR", sans-serif', 380, 54);
-      g.fillStyle='#22303c'; g.font='800 '+fs+'px "Noto Sans KR", sans-serif';
-      if(l2){ g.fillText(l1,0,-30); g.fillText(l2,0,-30+fs+6); } else { g.fillText(l1,0,-6); }
-      g.strokeStyle='#cdd6de'; g.lineWidth=2; g.beginPath(); g.moveTo(-96,58); g.lineTo(96,58); g.stroke();
-      g.fillStyle='#5c6b74'; g.font='600 30px "IBM Plex Mono", monospace'; g.fillText(vol||'', 0,96);
-    } else {
-      // 제품명 미입력 시 일반 선크림 placeholder
-      g.fillStyle='#3f6fb0'; g.fillRect(-124,-166,248,40);
-      g.fillStyle='#ffffff'; g.font='700 24px "IBM Plex Mono", monospace'; g.fillText('SPF50+ PA++++', 0,-139);
-      g.fillStyle='#22303c'; g.font='800 56px "Noto Sans KR", sans-serif'; g.fillText('SUN', 0,-58);
-      g.fillStyle='#3f6fb0'; g.font='800 44px "Noto Sans KR", sans-serif'; g.fillText('ESSENCE', 0,-8);
-      g.strokeStyle='#cdd6de'; g.lineWidth=2; g.beginPath(); g.moveTo(-96,26); g.lineTo(96,26); g.stroke();
-      g.fillStyle='#5c6b74'; g.font='500 28px "IBM Plex Mono", monospace'; g.fillText('50 ML', 0,66);
-    }
-    g.restore();
-    const t=new THREE.CanvasTexture(c);
-    t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=8;
-    return t;
-  }
-  // 그레이 높이맵 → 노멀맵 (상단 크림프 세로 톱니)
-  function makeSealNormal(){
-    const w=512,h=96, c=document.createElement('canvas'); c.width=w; c.height=h;
-    const g=c.getContext('2d');
-    g.fillStyle='#808080'; g.fillRect(0,0,w,h);
-    for(let x=0;x<w;x+=8){ g.fillStyle=(Math.floor(x/8)%2)?'#c6c6c6':'#565656'; g.fillRect(x,0,4,h); }
-    const src=g.getImageData(0,0,w,h).data;
-    const out=g.createImageData(w,h); const O=out.data;
-    const at=(x,y)=>{ x=Math.max(0,Math.min(w-1,x)); y=Math.max(0,Math.min(h-1,y)); return src[(y*w+x)*4]/255; };
-    const s=2.4;
-    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-      const dx=(at(x+1,y)-at(x-1,y))*s, dy=(at(x,y+1)-at(x,y-1))*s;
-      let nx=-dx, ny=-dy, nz=1; const len=Math.hypot(nx,ny,nz)||1;
-      const i=(y*w+x)*4; O[i]=(nx/len*0.5+0.5)*255; O[i+1]=(ny/len*0.5+0.5)*255; O[i+2]=(nz/len*0.5+0.5)*255; O[i+3]=255;
-    }
-    g.putImageData(out,0,0);
-    const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
-  }
-
-  /* ---- 지오메트리 ---- */
-  function buildTube(){
-    const grp=new THREE.Group();
-    // 테이퍼 스퀴즈 튜브: 위(크림프)가 넓고 캡(아래)으로 갈수록 좁아짐
-    const pts=[
-      [0.34,-1.05],[0.34,-0.88],
-      [0.44,-0.72],[0.60,-0.52],[0.75,-0.34],[0.85,-0.10],
-      [0.93,0.45],[1.02,1.15],[1.06,1.45],[1.02,1.58]
-    ].map(p=>new THREE.Vector2(p[0],p[1]));
-    const bodyGeo=new THREE.LatheGeometry(pts, 128);
-    bodyMat=new THREE.MeshPhysicalMaterial({
-      color:0xffffff, roughness:0.5, metalness:0.0,
-      transmission:0.05, thickness:1.0, ior:1.45, attenuationColor:new THREE.Color(0xeef1ea), attenuationDistance:4.0,
-      clearcoat:0.15, clearcoatRoughness:0.5, envMapIntensity:1.2
-    });
-    placeholderTex=makePlaceholderTexture(); bodyMat.map=placeholderTex;
-    const body=new THREE.Mesh(bodyGeo, bodyMat); body.castShadow=true; body.receiveShadow=true; grp.add(body);
-
-    // 상단 크림프 실링(세로 톱니)
-    const sealMat=new THREE.MeshStandardMaterial({color:0xf2f3ef, roughness:0.6, metalness:0, normalMap:makeSealNormal()});
-    sealMat.normalScale=new THREE.Vector2(0.9,0.9);
-    const seal=new THREE.Mesh(new THREE.BoxGeometry(2.04,0.32,0.05), sealMat);
-    seal.position.y=1.72; seal.castShadow=true; seal.receiveShadow=true; grp.add(seal);
-
-    // 하단 캡(세워짐) — 흰색 + 오벌 넙(엄지 홈)
-    const capMat=new THREE.MeshPhysicalMaterial({color:0xf3f4f2, roughness:0.4, metalness:0, clearcoat:0.3, clearcoatRoughness:0.35});
-    const cap=new THREE.Group();
-    const capBody=new THREE.Mesh(new THREE.CylinderGeometry(0.40,0.42,0.50,64), capMat);
-    capBody.position.y=-1.30; capBody.castShadow=true; capBody.receiveShadow=true; cap.add(capBody);
-    const capBase=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.40,0.05,64), capMat);
-    capBase.position.y=-1.55; cap.add(capBase);
-    const nub=new THREE.Mesh(new THREE.SphereGeometry(0.12,24,16), capMat);
-    nub.scale.set(1.7,1.1,0.55); nub.position.set(0,-1.30,0.40); cap.add(nub);
-    // 넥(캡~바디 사이 얇은 링)
-    const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.335,0.335,0.12,48),
-      new THREE.MeshPhysicalMaterial({color:0xeceee9, roughness:0.5, metalness:0}));
-    neck.position.y=-0.98; cap.add(neck);
-    grp.add(cap);
-
-    // 단면: 타원(기본) 로컬 Z 납작 / 원형=1.0
-    grp.scale.set(1, 1, ovalZ());
-    grp.__cap=cap;
-    return grp;
-  }
-
-  /* ---- 초기화 ---- */
-  function init(){
-    if(ready) return true;
-    try{
-      renderer=new THREE.WebGLRenderer({antialias:false, alpha:true});
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
-      renderer.outputColorSpace=THREE.SRGBColorSpace;
-      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12;
-      renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-      canvas=renderer.domElement;
-      canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;touch-action:none;';
-      scene=new THREE.Scene();
-      const pmrem=new THREE.PMREMGenerator(renderer);
-      scene.environment=pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-      camera=new THREE.PerspectiveCamera(32,1,0.1,100); camera.position.set(0,0,12.0);  // 다른 모델과 비슷한 크기로 축소
-      // key/fill + ambient
-      const key=new THREE.DirectionalLight(0xffffff,2.7); key.position.set(3.5,6,5);
-      key.castShadow=true; key.shadow.mapSize.set(2048,2048); key.shadow.radius=8; key.shadow.bias=-0.0004;
-      key.shadow.camera.near=1; key.shadow.camera.far=30;
-      key.shadow.camera.left=-4; key.shadow.camera.right=4; key.shadow.camera.top=5; key.shadow.camera.bottom=-5;
-      scene.add(key);
-      const fill=new THREE.DirectionalLight(0xffffff,0.6); fill.position.set(-5,1.5,-2); scene.add(fill);
-      scene.add(new THREE.AmbientLight(0xffffff,0.12));
-      // 바닥 섀도우 캐처
-      const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60), new THREE.ShadowMaterial({opacity:0.16}));
-      ground.rotation.x=-Math.PI/2; ground.position.y=-1.60; ground.receiveShadow=true; scene.add(ground);
-      group=buildTube(); scene.add(group);
-      // 후처리
-      composer=new EffectComposer(renderer);
-      composer.addPass(new RenderPass(scene,camera));
-      ssao=new SSAOPass(scene,camera,10,10); ssao.kernelRadius=0.5; ssao.minDistance=0.001; ssao.maxDistance=0.12;
-      composer.addPass(ssao);
-      composer.addPass(new SMAAPass());
-      composer.addPass(new OutputPass());
-      ready=true;
-      return true;
-    }catch(e){ console.warn('[TubeGL] init 실패 → CSS 폴백:', e.message); ready=false; return false; }
-  }
-
-  function sizeToStage(el){
-    const w=Math.max(1,el.clientWidth), h=Math.max(1,el.clientHeight);
-    renderer.setSize(w,h,false); composer.setSize(w,h);
-    if(ssao){ ssao.setSize(w,h); } camera.aspect=w/h; camera.updateProjectionMatrix();
-  }
-  function renderFrame(){ if(ready&&mounted) composer.render(); }
-
-  /* ---- 공개 API ---- */
-  window.__TubeGL={
-    isReady:()=>ready&&mounted,
-    show(stageEl){
-      stageEl=stageEl||document.getElementById('stage'); if(!stageEl) return;
-      if(!ready && !init()) return;              // 실패 시 폴백
-      if(canvas.parentNode!==stageEl) stageEl.appendChild(canvas);
-      mounted=true; canvas.style.display='block';
-      const t=cssTube(); if(t) t.style.visibility='hidden';   // CSS 튜브 숨김
-      if(!ro){ ro=new ResizeObserver(()=>{ if(mounted){ sizeToStage(stageEl); renderFrame(); } }); ro.observe(stageEl); }
-      sizeToStage(stageEl);
-      if(!this._badge){ this._badge=document.createElement('div'); this._badge.textContent='WebGL · PBR';
-        this._badge.style.cssText='position:absolute;bottom:8px;left:10px;z-index:2;font:600 10px "IBM Plex Mono",monospace;color:#2c5a34;background:rgba(255,255,255,.72);padding:2px 6px;border-radius:2px;pointer-events:none;'; }
-      stageEl.appendChild(this._badge);
-      const r=window.__viewerRot||{rx:-14,ry:28}; this.setRotation(r.rx,r.ry);
-    },
-    hide(){ mounted=false; if(canvas) canvas.style.display='none'; const t=cssTube(); if(t) t.style.visibility=''; if(this._badge&&this._badge.parentNode) this._badge.parentNode.removeChild(this._badge); },
-    setRotation(rx,ry){ if(!ready||!group) return; group.rotation.set(rx*DEG, ry*DEG, 0); renderFrame(); },
-    getCrossSection:()=>crossSection,
-    setCrossSection(v){ crossSection=(v==='round')?'round':'oval'; try{localStorage.setItem('tubeCross',crossSection);}catch(e){}
-      if(group){ group.scale.z=ovalZ(); renderFrame(); } },
-    setPrintText(name, vol){
-      printInfo={name:name||'', vol:vol||''};
-      if(bodyMat && !currentBodyTex){ if(placeholderTex) placeholderTex.dispose(); placeholderTex=makePlaceholderTexture(); bodyMat.map=placeholderTex; bodyMat.needsUpdate=true; renderFrame(); }
-    },
-    setBodyTexture(url){
-      if(!ready||!bodyMat) return;
-      if(!url){ bodyMat.map=placeholderTex; bodyMat.needsUpdate=true; renderFrame(); return; }
-      const img=new Image(); img.onload=()=>{
-        const t=new THREE.CanvasTexture(img); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=8;
-        if(currentBodyTex) currentBodyTex.dispose();
-        currentBodyTex=t; bodyMat.map=t; bodyMat.needsUpdate=true; renderFrame();
-      }; img.src=url;
-    }
-  };
-
-  // 모듈이 늦게 준비됐는데 이미 튜브가 활성 상태면 자동 표시
-  if(window.__viewerType==='tube') window.__TubeGL.show();
-})();
-</script>
 </body>
 </html>
