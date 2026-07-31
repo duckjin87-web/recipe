@@ -1089,8 +1089,34 @@
     }
     // 착인 사양 입력 → 형상 카드 활성화 상태 갱신
     if(f==='imprintPos'||f==='imprintColor'||f==='imprint1'||f==='imprint2') refreshShapeEnable();
+    // 제품명/용량 → 튜브 인쇄 갱신 + 제품명 기반 유형 추정 힌트
+    if(f==='nameKr'||f==='nameEn'||f==='fillVol'||f==='volume') updateTubePrint();
+    if(f==='nameKr'||f==='nameEn') showNameTypeHint();
+    // 적재 정보 → 파레트 시뮬레이션
+    if(f==='palletBox'||f==='palletTier') renderPallet();
   }
   function get(f){ return state[f] || ''; }
+
+  // 제품명(국문)을 튜브 바디 인쇄로 반영
+  function updateTubePrint(){
+    if(currentType==='tube' && window.__TubeGL && window.__TubeGL.setPrintText)
+      window.__TubeGL.setPrintText(get('nameKr')||get('nameEn'), get('fillVol')||get('volume'));
+  }
+
+  // 제품명 키워드로 용기/튜브 추정 (참고용 힌트 — 자재번호 판별을 덮어쓰지 않음)
+  function guessTypeFromName(){
+    const s=(get('nameKr')+' '+get('nameEn')).toLowerCase();
+    if(!s.trim()) return null;
+    if(/쿠션|토너|스킨|미스트|앰플|세럼|에센스|serum|essence|toner|mist|오일|\boil\b|워터|앰퓰|스프레이|펌프/.test(s)) return {t:'container', why:'토너·세럼·쿠션류'};
+    if(/크림|선크림|클렌징|클렌저|폼|젤|밤|\bgel\b|cream|cleanser|foam|선블록|자외선|핸드|풋|바디로션|로션/.test(s)) return {t:'tube', why:'크림·클렌저·선크림류'};
+    return null;
+  }
+  function showNameTypeHint(){
+    const g=guessTypeFromName(); if(!g||!autodetect) return;
+    const same = g.t===currentType;
+    autodetect.innerHTML = '제품명 기준 추정: <b>'+TYPES[g.t].label+'</b> ('+g.why+') · 현재 유형 <b>'+TYPES[currentType].label+'</b>'+
+      (same?' — 일치':' — <span style="color:var(--stamp-red)">불일치? 확인</span>')+'. 자재번호(10/20)·착인블록이 우선 기준입니다.';
+  }
 
   // 사양서 1건 = 1품목. 새 사양서 등록/비우기 시 이전(샘플 포함) 값 제거 → 미추출 필드가 남의 제품값으로 남지 않도록
   const ITEM_FIELDS = ['matno','abbr','abbr2','nameKr','nameEn','volume','fillVol','setType','lot','lot2',
@@ -1376,6 +1402,24 @@
       : '<div class="comp-item" style="border:none;color:var(--ink-soft);">구성품 미기재 — 제품명/구성품 필드에 입력하세요.</div>';
   }
 
+  // 04 파레트: 적재 단수/1단 BOX 수 입력 시 실제 단수로 시뮬레이션
+  function renderPallet(){
+    const stack=document.querySelector('.pallet-stack'); if(!stack) return;
+    const note=document.querySelector('.pallet-note');
+    const tier=parseInt(get('palletTier'),10), box=parseInt(get('palletBox'),10);
+    if(!(tier>0)){
+      stack.innerHTML='<div class="pallet-layer"></div><div class="pallet-layer"></div><div class="pallet-layer"></div>';
+      if(note) note.textContent='예시 적층 — 적재 단수(와 1단 BOX 수)를 입력하면 실제 단수로 시뮬레이션됩니다';
+      return;
+    }
+    const show=Math.min(tier,16);
+    const h = show>6 ? Math.max(9, Math.floor(210/show)) : 30;
+    let html=''; for(let i=0;i<show;i++) html+='<div class="pallet-layer" style="height:'+h+'px"></div>';
+    stack.innerHTML=html;
+    if(note) note.innerHTML='적재 시뮬레이션 — <b>'+show+(tier>show?'/'+tier:'')+'단</b>'+
+      (box>0?' × 1단 <b>'+box+'BOX</b> = 총 <b>'+(box*tier).toLocaleString()+'BOX</b>':' · 1단 BOX 수 입력 시 총량 계산');
+  }
+
   function renderControls(cfg){
     ctrlRail.innerHTML='';
     cfg.views.forEach(v=>{
@@ -1657,7 +1701,7 @@
     MODELS[t].classList.add('active');
     // 튜브: WebGL(PBR) 뷰어로 대체 · 그 외 유형은 CSS 3D
     window.__viewerType=t;
-    if(window.__TubeGL){ if(t==='tube') window.__TubeGL.show(stage); else window.__TubeGL.hide(); }
+    if(window.__TubeGL){ if(t==='tube'){ window.__TubeGL.show(stage); updateTubePrint(); } else window.__TubeGL.hide(); }
     // labels + sections
     stageLabel.textContent = cfg.stageLabel;
     viewerTitle.textContent = cfg.viewerTitle;
@@ -1674,6 +1718,7 @@
     refreshGuides();
     applyShape();
     updateShapeBadge();
+    if(cfg.family==='packed') renderPallet();
     // reset rotation to front-ish
     rx=-14; ry=28; stopSpin(); apply();
     if(!opts||!opts.silent) flashDetect('수동 선택', t);
@@ -1852,23 +1897,39 @@
   let placeholderTex=null, currentBodyTex=null;
   let crossSection=(function(){ try{ return localStorage.getItem('tubeCross')||'oval'; }catch(e){ return 'oval'; } })();
   const ovalZ = ()=> crossSection==='round' ? 1.0 : 0.44;   // 원형=1.0, 타원=0.44
+  let printInfo={name:'', vol:''};   // 제품명 기반 바디 인쇄
   const cssTube = ()=>document.querySelector('.model3d.m-tube');
 
   /* ---- 텍스처 유틸 ---- */
+  function fitFont(g, text, weight, family, maxW, start){
+    let s=start; do{ g.font=weight+' '+s+'px '+family; if(g.measureText(text).width<=maxW) break; s-=2; }while(s>12); return s;
+  }
   function makePlaceholderTexture(){
     const c=document.createElement('canvas'); c.width=1024; c.height=512;
     const g=c.getContext('2d');
     const lg=g.createLinearGradient(0,0,0,512); lg.addColorStop(0,'#ffffff'); lg.addColorStop(1,'#eef2f5');
     g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
-    // 앞면(가운데)에 선크림 스타일 인쇄
     g.save(); g.translate(c.width*0.5, c.height*0.5); g.textAlign='center';
-    g.fillStyle='#3f6fb0'; g.fillRect(-124,-166,248,40);         // accent pill
-    g.fillStyle='#ffffff'; g.font='700 24px "IBM Plex Mono", monospace'; g.fillText('SPF50+ PA++++', 0,-139);
-    g.fillStyle='#22303c'; g.font='800 56px "Noto Sans KR", sans-serif'; g.fillText('SUN', 0,-58);
-    g.fillStyle='#3f6fb0'; g.font='800 44px "Noto Sans KR", sans-serif'; g.fillText('ESSENCE', 0,-8);
-    g.strokeStyle='#cdd6de'; g.lineWidth=2; g.beginPath(); g.moveTo(-96,26); g.lineTo(96,26); g.stroke();
-    g.fillStyle='#5c6b74'; g.font='500 28px "IBM Plex Mono", monospace'; g.fillText('50 ML', 0,66);
-    g.fillStyle='#9aa7b2'; g.font='500 18px "IBM Plex Mono", monospace'; g.fillText('WATERPROOF · TONE-UP', 0,104);
+    const name=(printInfo.name||'').trim(), vol=(printInfo.vol||'').trim();
+    if(name){
+      // 제품명 기반 인쇄 (긴 이름은 최대 2줄로 줄바꿈)
+      g.fillStyle='#3f6fb0'; g.fillRect(-70,-150,140,10);
+      const words=name.split(/\s+/); let l1=name, l2='';
+      if(name.length>10 && words.length>1){ const mid=Math.ceil(words.length/2); l1=words.slice(0,mid).join(' '); l2=words.slice(mid).join(' '); }
+      const fs=fitFont(g, l1.length>=l2.length?l1:l2, '800', '"Noto Sans KR", sans-serif', 380, 54);
+      g.fillStyle='#22303c'; g.font='800 '+fs+'px "Noto Sans KR", sans-serif';
+      if(l2){ g.fillText(l1,0,-30); g.fillText(l2,0,-30+fs+6); } else { g.fillText(l1,0,-6); }
+      g.strokeStyle='#cdd6de'; g.lineWidth=2; g.beginPath(); g.moveTo(-96,58); g.lineTo(96,58); g.stroke();
+      g.fillStyle='#5c6b74'; g.font='600 30px "IBM Plex Mono", monospace'; g.fillText(vol||'', 0,96);
+    } else {
+      // 제품명 미입력 시 일반 선크림 placeholder
+      g.fillStyle='#3f6fb0'; g.fillRect(-124,-166,248,40);
+      g.fillStyle='#ffffff'; g.font='700 24px "IBM Plex Mono", monospace'; g.fillText('SPF50+ PA++++', 0,-139);
+      g.fillStyle='#22303c'; g.font='800 56px "Noto Sans KR", sans-serif'; g.fillText('SUN', 0,-58);
+      g.fillStyle='#3f6fb0'; g.font='800 44px "Noto Sans KR", sans-serif'; g.fillText('ESSENCE', 0,-8);
+      g.strokeStyle='#cdd6de'; g.lineWidth=2; g.beginPath(); g.moveTo(-96,26); g.lineTo(96,26); g.stroke();
+      g.fillStyle='#5c6b74'; g.font='500 28px "IBM Plex Mono", monospace'; g.fillText('50 ML', 0,66);
+    }
     g.restore();
     const t=new THREE.CanvasTexture(c);
     t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=8;
@@ -2005,6 +2066,10 @@
     getCrossSection:()=>crossSection,
     setCrossSection(v){ crossSection=(v==='round')?'round':'oval'; try{localStorage.setItem('tubeCross',crossSection);}catch(e){}
       if(group){ group.scale.z=ovalZ(); renderFrame(); } },
+    setPrintText(name, vol){
+      printInfo={name:name||'', vol:vol||''};
+      if(bodyMat && !currentBodyTex){ if(placeholderTex) placeholderTex.dispose(); placeholderTex=makePlaceholderTexture(); bodyMat.map=placeholderTex; bodyMat.needsUpdate=true; renderFrame(); }
+    },
     setBodyTexture(url){
       if(!ready||!bodyMat) return;
       if(!url){ bodyMat.map=placeholderTex; bodyMat.needsUpdate=true; renderFrame(); return; }
