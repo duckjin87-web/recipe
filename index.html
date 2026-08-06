@@ -1103,7 +1103,7 @@
 
   // 제품명(국문)을 튜브 목업 인쇄로 반영
   function updateTubePrint(){ if(currentType!=='tube') return; syncBinds();
-    if(window.__TubeGL && window.__TubeGL.isReady()) window.__TubeGL.setPrint(get('nameKr')||get('nameEn'), get('fillVol')||get('volume')); }
+    if(window.__TubeGL && window.__TubeGL.isReady()) window.__TubeGL.setPrint(get('nameKr')||get('nameEn'), get('fillVol')||get('volume'), {cut:get('cutType')}); }
 
   // 제품명 키워드로 용기/튜브 추정 (참고용 힌트 — 자재번호 판별을 덮어쓰지 않음)
   function guessTypeFromName(){
@@ -1860,65 +1860,328 @@
 
 <!-- ===== TUBE WebGL (PBR) ===== -->
 <script type="module">
-/* 테이퍼 스퀴즈 튜브 3D (three.js). 로드/WebGL 실패 시 조용히 종료 → CSS 3D 튜브 폴백.
-   회전은 기존 rx·ry(window.__viewerRot)로 구동. */
+/* 스탠딩 원추형 압출튜브 3D (three.js).  four be… 참고 리팩터 v2.0
+   · 캡이 바닥, 실링부가 상단 (플립톱 위에 세워두는 실제 형태)
+   · 몸통은 캡 쪽이 좁고 실링 쪽으로 넓어지는 테이퍼 · 단면 오브라운드(둘레 보존)
+   · 상단 실링부 세로 세레이션, 목 나사산, 플립톱(베이스+리드 힌지)
+   · color/ORM 캔버스 텍스처 · 프로시저럴 스튜디오 IBL · MeshPhysicalMaterial
+   회전은 기존 rx·ry(window.__viewerRot)로 group 을 돌려 구동.
+   three/WebGL 로드 실패 시 조용히 종료 → CSS 3D 튜브 폴백. */
 (async function(){
-  let THREE, RoomEnvironment;
-  try{
-    THREE = await import('three');
-    ({ RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js'));
-  }catch(e){ console.warn('[TubeGL] three 로드 실패 → CSS 폴백:', e.message); return; }
+  let THREE;
+  try{ THREE = await import('three'); }
+  catch(e){ console.warn('[TubeGL] three 로드 실패 → CSS 폴백:', e.message); return; }
 
-  const DEG=Math.PI/180;
-  let renderer,scene,camera,group,bodyMat,ready=false,mounted=false,canvas,ro,badge;
-  let placeholderTex=null, userTex=null, printInfo={name:'',vol:''};
-  const cssTube=()=>document.querySelector('.model3d.m-tube');
+  /* ───────── 상수·수학 ───────── */
+  const DEG=Math.PI/180, MM=0.1, OVAL_K=1.9, TAPER=0.62;
+  const FONT='"Helvetica Neue", Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  const smooth=(x)=>{ x=clamp(x,0,1); return x*x*(3-2*x); };
+  const frac=(x)=>x-Math.floor(x);
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const PALETTE={ tube:'#F6F5F3', cap:'#FFFFFF', gold:'#C6A24A', ink:'#2B2E31', soft:'#8A8F93' };
+  const FINISH={
+    soft:{ rough:0.42, cc:0.05, ccr:0.25, refl:0.48, metal:0 },
+    gloss:{ rough:0.18, cc:0.9, ccr:0.06, refl:0.55, metal:0 },
+    alu:{ rough:0.28, cc:0.35, ccr:0.18, refl:0.5, metal:0.9 },
+  };
 
-  function fit(g,t,w,f,maxW,start){ let s=start; do{ g.font=w+' '+s+'px '+f; if(g.measureText(t).width<=maxW)break; s-=2; }while(s>12); return s; }
-  function makeBodyTexture(){
-    const c=document.createElement('canvas'); c.width=1024; c.height=512; const g=c.getContext('2d');
-    const lg=g.createLinearGradient(0,0,0,512); lg.addColorStop(0,'#ffffff'); lg.addColorStop(1,'#eef2f5'); g.fillStyle=lg; g.fillRect(0,0,1024,512);
-    g.save(); g.translate(512,256); g.textAlign='center';
-    const name=(printInfo.name||'').trim(), vol=(printInfo.vol||'').trim();
-    if(name){
-      g.fillStyle='#3f6fb0'; g.fillRect(-70,-150,140,10);
-      const words=name.split(/\s+/); let l1=name,l2='';
-      if(name.length>10&&words.length>1){ const m=Math.ceil(words.length/2); l1=words.slice(0,m).join(' '); l2=words.slice(m).join(' '); }
-      const fs=fit(g, l1.length>=l2.length?l1:l2, '800', '"Noto Sans KR",sans-serif', 380, 54);
-      g.fillStyle='#22303c'; g.font='800 '+fs+'px "Noto Sans KR",sans-serif';
-      if(l2){ g.fillText(l1,0,-30); g.fillText(l2,0,-30+fs+6); } else g.fillText(l1,0,-6);
-      g.strokeStyle='#cdd6de'; g.lineWidth=2; g.beginPath(); g.moveTo(-96,58); g.lineTo(96,58); g.stroke();
-      g.fillStyle='#5c6b74'; g.font='600 30px "IBM Plex Mono",monospace'; g.fillText(vol||'',0,96);
-    } else {
-      g.fillStyle='#3f6fb0'; g.fillRect(-124,-166,248,40); g.fillStyle='#fff'; g.font='700 24px "IBM Plex Mono",monospace'; g.fillText('SPF50+ PA++++',0,-139);
-      g.fillStyle='#22303c'; g.font='800 56px "Noto Sans KR",sans-serif'; g.fillText('SUN',0,-58);
-      g.fillStyle='#3f6fb0'; g.font='800 44px "Noto Sans KR",sans-serif'; g.fillText('ESSENCE',0,-8);
-      g.fillStyle='#5c6b74'; g.font='500 28px "IBM Plex Mono",monospace'; g.fillText('50 ML',0,66);
-    }
-    g.restore();
-    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=8; return t;
+  /* ───────── 오브라운드 단면 (호길이 매개변수) ───────── */
+  function stadium(u,a,b){
+    const L=2*(a-b), h=L/2, P=2*L+2*Math.PI*b;
+    let t=u*P;
+    if(t<h) return {x:t,z:b,flat:1};
+    t-=h;
+    if(t<Math.PI*b){ const p=Math.PI/2-t/b; return {x:h+b*Math.cos(p),z:b*Math.sin(p),flat:0}; }
+    t-=Math.PI*b;
+    if(t<L) return {x:h-t,z:-b,flat:1};
+    t-=L;
+    if(t<Math.PI*b){ const p=-Math.PI/2-t/b; return {x:-h+b*Math.cos(p),z:b*Math.sin(p),flat:0}; }
+    t-=Math.PI*b;
+    return {x:-h+t,z:b,flat:1};
   }
-  function buildTube(){
-    const grp=new THREE.Group();
-    // 테이퍼: 아래(캡쪽) 좁고 위(크림프) 넓음. 프로파일 아래→위
-    const pts=[
-      [0.30,-1.60],[0.30,-1.42],
-      [0.42,-1.24],[0.60,-0.98],[0.78,-0.66],[0.88,-0.28],
-      [0.96,0.35],[1.04,1.15],[1.06,1.45],[1.00,1.58]
-    ].map(p=>new THREE.Vector2(p[0],p[1]));
-    const bodyGeo=new THREE.LatheGeometry(pts,128);
-    bodyMat=new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:0.5,metalness:0,clearcoat:0.15,clearcoatRoughness:0.5,envMapIntensity:1.2});
-    placeholderTex=makeBodyTexture(); bodyMat.map=placeholderTex;
-    const body=new THREE.Mesh(bodyGeo,bodyMat); body.castShadow=true; body.receiveShadow=true; grp.add(body);
-    // 상단 크림프(세로 톱니 느낌은 생략, 얇은 판)
-    const sealMat=new THREE.MeshStandardMaterial({color:0xf1f2ee,roughness:0.6,metalness:0});
-    const seal=new THREE.Mesh(new THREE.BoxGeometry(2.02,0.30,0.06),sealMat); seal.position.y=1.72; seal.castShadow=true; grp.add(seal);
-    // 하단 캡 + 오벌 넙
-    const capMat=new THREE.MeshPhysicalMaterial({color:0xf2f3f1,roughness:0.4,metalness:0,clearcoat:0.3,clearcoatRoughness:0.35});
-    const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.40,0.42,0.52,64),capMat); cap.position.y=-1.85; cap.castShadow=true; cap.receiveShadow=true; grp.add(cap);
-    const collar=new THREE.Mesh(new THREE.CylinderGeometry(0.43,0.41,0.06,64),capMat); collar.position.y=-1.58; grp.add(collar);
-    const nub=new THREE.Mesh(new THREE.SphereGeometry(0.12,24,16),capMat); nub.scale.set(1.7,1.1,0.55); nub.position.set(0,-1.85,0.40); grp.add(nub);
-    return grp;
+
+  /* ───────── 규격 산출 ───────── */
+  function makeSpec(D,oval,taper,lenMul){
+    const rMax=D/2;
+    const rMin=rMax*(taper?TAPER:1);
+    const K=oval?OVAL_K:1;
+    const bOf=(r)=>(2*Math.PI*r)/(4*K-4+2*Math.PI);
+    const aOf=(r)=>K*bOf(r);
+    const kArea=(()=>{ const b=bOf(1),a=aOf(1); return (4*b*(a-b)+Math.PI*b*b)/Math.PI; })();
+    const neckR=clamp(rMin*0.5,4,12);
+    const capH=clamp(2*rMin*0.9,15,32);
+    const yOri=4.5;
+    const neckTop=yOri+clamp(capH*0.42,8,14);
+    const crimpH=clamp(D*0.19,4.5,9);
+    const tz=D*0.6;
+    const ratio=clamp(3.5-D*0.021,2.25,3.5);
+    const H=D*ratio*lenMul;
+    const rProfile=(y)=>{
+      const tEnd=H-crimpH-tz*0.5;
+      if(y<=neckTop) return neckR;
+      if(y<capH) return lerp(neckR,rMin,smooth((y-neckTop)/Math.max(1,capH-neckTop)));
+      if(y<tEnd) return lerp(rMin,rMax,clamp((y-capH)/Math.max(1,tEnd-capH),0,1));
+      return rMax;
+    };
+    let est=0;
+    { const n=220, y0=neckTop, y1=H-crimpH-tz*0.35;
+      for(let i=0;i<n;i++){ const y=y0+((i+0.5)/n)*(y1-y0); const r=rProfile(y); est+=kArea*Math.PI*r*r*((y1-y0)/n); }
+      est=est/1000; }
+    const s={ D,rMax,rMin,oval,taper,K,neckR,capH,yOri,neckTop,crimpH,tz,H,
+      bSeal:clamp(D*0.024,0.45,1.0), cornerR:clamp(D*0.07,1.2,3.2),
+      vol:Math.max(1,Math.round(est/(est<30?1:5))*(est<30?1:5)) };
+    s.radiusAt=rProfile;
+    s.shapeAt=(y)=>{
+      const r=s.radiusAt(y);
+      const bBody=y<=s.neckTop?r:lerp(r,bOf(r),smooth((y-s.neckTop)/Math.max(1,s.capH-s.neckTop)));
+      const yc=H-s.crimpH;
+      let b=y>=yc?s.bSeal : y>yc-tz?lerp(bBody,s.bSeal,smooth((y-(yc-tz))/tz)) : bBody;
+      b=Math.min(b,r);
+      let a=(2*Math.PI*r-2*Math.PI*b+4*b)/4;
+      const d=H-y;
+      if(d<s.bSeal){ const k=d/s.bSeal; b*=Math.max(0.06,Math.sqrt(Math.max(0,1-(1-k)*(1-k)))); }
+      if(d<s.cornerR){ const k=d/s.cornerR; a-=s.cornerR*(1-Math.sqrt(Math.max(0,1-(1-k)*(1-k)))); }
+      return { r, a:Math.max(a,b+0.001), b:Math.max(b,0.02) };
+    };
+    const seat=s.shapeAt(capH);
+    s.capA=seat.a+0.15; s.capB=seat.b+0.15;
+    const mid=s.shapeAt(H-crimpH-tz*0.8); s.W=2*mid.a; s.T=2*mid.b;
+    const low=s.shapeAt(capH); s.Wc=2*low.a; s.Tc=2*low.b;
+    return s;
+  }
+
+  /* ───────── 공용 메시 빌더 ───────── */
+  function indexGrid(rows,radial){
+    const idx=new Uint32Array((rows-1)*radial*6); let k=0;
+    for(let j=0;j<rows-1;j++) for(let i=0;i<radial;i++){
+      const a=j*(radial+1)+i, b=a+1, c=a+radial+1, d=c+1;
+      idx[k++]=a; idx[k++]=c; idx[k++]=b; idx[k++]=b; idx[k++]=c; idx[k++]=d;
+    }
+    return new THREE.BufferAttribute(idx,1);
+  }
+  function weldSeam(g,rows,radial){
+    const n=g.attributes.normal.array;
+    for(let j=0;j<rows;j++){
+      const a=j*(radial+1)*3, b=(j*(radial+1)+radial)*3;
+      for(let c=0;c<3;c++){ const v=(n[a+c]+n[b+c])*0.5; n[a+c]=v; n[b+c]=v; }
+    }
+    g.attributes.normal.needsUpdate=true;
+  }
+  function sectionMesh(pts,radial,opt={}){
+    const rows=pts.length;
+    const pos=new Float32Array(rows*(radial+1)*3);
+    const uv=opt.uv?new Float32Array(rows*(radial+1)*2):null;
+    let k=0,m=0;
+    for(let j=0;j<rows;j++){
+      const P=pts[j];
+      for(let i=0;i<=radial;i++){
+        const u=i/radial;
+        const d=opt.mod?opt.mod(u,P.y,P):0;
+        const a=Math.max(P.a+d,0.0004);
+        const b=Math.max(Math.min(P.b+d,a),0.0003);
+        const c=stadium(u,a,b);
+        const dz=opt.zmod?opt.zmod(u,P.y,c,P):0;
+        pos[k++]=c.x; pos[k++]=P.y; pos[k++]=c.z+Math.sign(c.z)*dz;
+        if(uv){ uv[m++]=u; uv[m++]=P.v===undefined?j/(rows-1):P.v; }
+      }
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    if(uv) g.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+    g.setIndex(indexGrid(rows,radial));
+    g.computeVertexNormals();
+    weldSeam(g,rows,radial);
+    return g;
+  }
+
+  /* ───────── 튜브 본체 ───────── */
+  function buildTube(s,radial){
+    const seg=(y0,y1,n)=>Array.from({length:n},(_,i)=>y0+((i+1)/n)*(y1-y0));
+    const yc=s.H-s.crimpH;
+    const ys=[ s.yOri, ...seg(s.yOri,s.neckTop,24), ...seg(s.neckTop,s.capH,34),
+      ...seg(s.capH,yc-s.tz,40), ...seg(yc-s.tz,yc,58), ...seg(yc,s.H,46), s.H+0.008 ];
+    const pts=ys.map((yy)=>{
+      const y=Math.min(yy,s.H); const sh=s.shapeAt(y); const pinch=yy>s.H?0.16:1;
+      return { y:yy*MM, a:sh.a*MM, b:sh.b*pinch*MM, r:sh.r, ymm:y, v:y/s.H };
+    });
+    const mod=(u,yUnit,P)=>{
+      const y=P.ymm; let d=0;
+      if(y<s.neckTop+0.3){ const fade=clamp((s.neckTop-y)/0.8,0,1)*clamp((y-s.yOri-1.5)/0.8,0,1);
+        d+=0.5*Math.pow(0.5+0.5*Math.cos(frac((s.neckTop-y)/3)*Math.PI*2),3)*fade; }
+      const yc2=s.H-s.crimpH;
+      if(y>s.capH && y<yc2-s.tz*0.6){ const th=u*Math.PI*2; const mk=smooth((y-s.capH)/6)*smooth((yc2-s.tz*0.6-y)/6);
+        d+=0.06*Math.exp(-Math.pow(Math.sin(th/2),2)*2600); d+=0.09*Math.sin(3*th+y*0.32)*mk; }
+      return d*MM;
+    };
+    const yc3=s.H-s.crimpH;
+    const zmod=(u,yUnit,c,P)=>{
+      const y=P.ymm; if(y<yc3-0.4) return 0;
+      const fade=smooth((y-(yc3-0.3))/1.0)*smooth((s.H-0.4-y)/0.8);
+      const xmm=c.x/MM;
+      return 0.10*MM*(0.5+0.5*Math.cos((xmm/0.9)*Math.PI*2))*c.flat*fade;
+    };
+    return sectionMesh(pts,radial,{uv:true,mod,zmod});
+  }
+
+  /* ───────── 토출구 (아래를 향함) ───────── */
+  function buildOrifice(s,radial){
+    const rN=s.neckR, y0=s.yOri, rI=rN-1.5; const raw=[];
+    for(let i=0;i<=10;i++){ const p=(i/10)*(Math.PI/2); raw.push([y0+0.07-Math.sin(p)*0.7, rN-(1-Math.cos(p))*0.7]); }
+    raw.push([y0-0.66,rI+0.2]); raw.push([y0-0.4,rI]); raw.push([y0+6,rI-0.1]); raw.push([y0+6.2,0]);
+    return sectionMesh(raw.map(([y,r])=>({y:y*MM,a:Math.max(r,0.001)*MM,b:Math.max(r,0.001)*MM})),radial);
+  }
+
+  /* ───────── 플립톱 캡 — 베이스 + 리드 ───────── */
+  function buildCapParts(s,radial){
+    const A=s.capA*MM, B=s.capB*MM, h=s.capH*MM;
+    const hinge=h*0.32, rB=Math.min(1.6*MM,B*0.35);
+    const mk=(y,off)=>({y,a:A+off,b:B+off});
+    const lid=[{y:0,a:0.0006,b:0.0006}];
+    for(let i=0;i<=10;i++){ const p=(i/10)*(Math.PI/2); lid.push(mk(rB-Math.cos(p)*rB, -rB+Math.sin(p)*rB-0.15*MM)); }
+    for(let y=rB+0.4*MM; y<hinge-0.35*MM; y+=0.35*MM) lid.push(mk(y,-0.15*MM));
+    lid.push(mk(hinge-0.3*MM,-0.15*MM)); lid.push(mk(hinge-0.12*MM,-0.42*MM)); lid.push(mk(hinge,-0.42*MM));
+    const base=[]; base.push(mk(hinge,-0.42*MM)); base.push(mk(hinge+0.12*MM,-0.42*MM)); base.push(mk(hinge+0.3*MM,0));
+    for(let y=hinge+0.7*MM; y<h-0.6*MM; y+=0.35*MM) base.push(mk(y,-0.1*MM*(y/h)));
+    base.push(mk(h-0.35*MM,-0.25*MM)); base.push(mk(h,-0.8*MM));
+    const dU=(u,c)=>{ const d=Math.abs(u-c); return Math.min(d,1-d); };
+    const parting=(u,y)=>0.05*MM*(Math.exp(-Math.pow(dU(u,0.25)/0.006,2))+Math.exp(-Math.pow(dU(u,0.75)/0.006,2)));
+    const cyR=hinge*0.42, cy=hinge*0.5;
+    const thumb=(u,y)=>{ const su=smooth((0.085-dU(u,0.5))/0.028); const sy=smooth((cyR-Math.abs(y-cy))/(cyR*0.45)); return -1.5*MM*su*sy; };
+    return { lid:sectionMesh(lid,radial,{mod:(u,y)=>parting(u,y)+thumb(u,y)}), base:sectionMesh(base,radial,{mod:parting}), hinge, h };
+  }
+
+  /* ───────── 인쇄 (color / orm) ───────── */
+  function paint(s,mode,fin,copy){
+    const CH=1200, Pmax=2*Math.PI*s.rMax;
+    const CW=clamp(Math.round(CH*(Pmax/s.H)),700,1400), PX=CH/s.H;
+    const cv=document.createElement('canvas'); cv.width=CW; cv.height=CH; const g=cv.getContext('2d');
+    const gray=(v)=>`rgb(0,${Math.round(clamp(v,0,1)*255)},0)`;
+    const color=mode==='color';
+    const BASE=color?PALETTE.tube:gray(fin.rough);
+    const INK=color?PALETTE.ink:gray(fin.rough*0.72);
+    const SOFT=color?PALETTE.soft:gray(fin.rough*0.8);
+    const GOLD=color?PALETTE.gold:'rgb(0,46,255)';
+    g.fillStyle=BASE; g.fillRect(0,0,CW,CH);
+    const ts=clamp(s.D/40,0.6,1.15);
+    const F=(mm,w=400)=>`${w} ${Math.max(8,Math.round(mm*PX*ts))}px ${FONT}`;
+    const Y=(mm)=>CH-(mm/s.H)*CH, U=(mm)=>mm*PX, maxW=CW*0.30, cx=CW/2;
+    const fit=(t,y,mm,w,col)=>{ let f=mm; g.font=F(f,w); while(g.measureText(t).width>maxW&&f>0.8){ f*=0.94; g.font=F(f,w); } g.fillStyle=col; g.textAlign='center'; g.fillText(t,cx,y); };
+    const sp=(t,y,mm,w,gap,col)=>{ g.font=F(mm,w); g.fillStyle=col; g.textAlign='left'; const ch=[...t]; let tw=-gap; ch.forEach(c=>tw+=g.measureText(c).width+gap); let x=cx-tw/2; ch.forEach(c=>{ g.fillText(c,x,y); x+=g.measureText(c).width+gap; }); };
+    const top=Y(s.H-s.crimpH-s.tz*0.75), bot=Y(s.capH)-U(2);
+    const name=(copy.name||'').trim(), vol=(copy.vol||'').trim();
+    if(name){
+      g.fillStyle=GOLD; g.fillRect(cx-U(1.8),top+U(11),U(3.6),Math.max(2,U(0.16)));
+      const words=name.split(/\s+/); let l1=name,l2='';
+      if(name.length>8&&words.length>1){ const m=Math.ceil(words.length/2); l1=words.slice(0,m).join(' '); l2=words.slice(m).join(' '); }
+      fit(l1,top+U(22),6.2,700,INK);
+      if(l2) fit(l2,top+U(30),6.2,700,INK);
+      g.fillStyle=GOLD; g.fillRect(cx-maxW*0.20,top+U(l2?35:29),maxW*0.40,Math.max(1,U(0.1)));
+      fit('SKINCARE',top+U(l2?39:33),2.3,300,SOFT);
+    } else {
+      sp('SKINCARE',top+U(15),2.6,300,U(0.9),SOFT);
+      fit('MOISTURE',top+U(24),7.0,600,INK);
+      sp('REPAIR CREAM',top+U(29),2.9,400,U(0.35),INK);
+    }
+    if(vol) fit(vol,bot-U(10),3.2,500,INK);
+    fit('화장품책임판매업자 표기',bot-U(6.6),1.7,400,SOFT);
+    fit('제조원 표기 · 대한민국',bot-U(4.4),1.7,400,SOFT);
+    fit('사용기한·제조번호: 상단 표기',bot-U(2.2),1.7,400,SOFT);
+    const back=()=>{
+      const y=top+U(16), bw=maxW*0.6, bh=U(9);
+      g.fillStyle=color?'#FFFFFF':gray(fin.rough*1.1); g.fillRect(-bw/2,y,bw,bh);
+      let bx=-bw/2+3, seed=91;
+      while(bx<bw/2-3){ seed=(seed*16807)%2147483647; const w=2+(seed%4); if(seed%3!==0){ g.fillStyle=INK; g.fillRect(bx,y+2,w,bh*0.72); } bx+=w+2; }
+      g.font=F(1.3,400); g.textAlign='center'; g.fillStyle=INK; g.fillText('8 801234 567890',0,y+bh*0.96);
+      g.font=F(1.6,500); g.fillStyle=SOFT; g.fillText('MADE IN KOREA',0,y+bh+U(3.2));
+    };
+    [0,CW].forEach(o=>{ g.save(); g.translate(o,0); back(); g.restore(); });
+    g.save(); g.translate(cx-maxW*0.3,Y(s.H-s.crimpH*0.45)); g.rotate(0.005);
+    g.font=F(1.7,400); g.textAlign='left'; g.fillStyle=SOFT; g.fillText('MFG ····.··.··  EXP ····.··.··  L·····',0,0); g.restore();
+    if(color){
+      let gr=g.createLinearGradient(0,Y(s.H),0,Y(s.H-s.crimpH-s.tz*0.5));
+      gr.addColorStop(0,'rgba(0,0,0,0.22)'); gr.addColorStop(0.35,'rgba(0,0,0,0.08)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.fillRect(0,0,CW,Y(s.H-s.crimpH-s.tz*0.5));
+      gr=g.createLinearGradient(0,Y(s.capH),0,Y(s.capH+5)); gr.addColorStop(0,'rgba(0,0,0,0.18)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=gr; g.fillRect(0,Y(s.capH+5),CW,U(5));
+    } else {
+      const nz=document.createElement('canvas'); nz.width=nz.height=128; const ng=nz.getContext('2d'); const nd=ng.createImageData(128,128);
+      for(let i=0;i<nd.data.length;i+=4){ const v=128+(Math.random()-0.5)*40; nd.data[i]=0; nd.data[i+1]=v; nd.data[i+2]=0; nd.data[i+3]=255; }
+      ng.putImageData(nd,0,0); g.globalAlpha=0.26; g.globalCompositeOperation='overlay';
+      const pat=g.createPattern(nz,'repeat'); if(pat){ g.fillStyle=pat; g.fillRect(0,0,CW,CH); }
+      g.globalCompositeOperation='source-over'; g.globalAlpha=1;
+    }
+    return cv;
+  }
+
+  /* ───────── 프로시저럴 스튜디오 (IBL) ───────── */
+  function studioEnv(){
+    const sc=new THREE.Scene();
+    const add=(w,h,x,y,z,rx,ry,c)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:c})); m.position.set(x,y,z); m.rotation.set(rx,ry,0); sc.add(m); };
+    sc.add(new THREE.Mesh(new THREE.BoxGeometry(90,70,90),new THREE.MeshBasicMaterial({color:0x70747a,side:THREE.BackSide})));
+    add(70,70,0,34,0,Math.PI/2,0,0xffffff);
+    add(16,54,-24,13,14,0,Math.PI/2,0xffffff);
+    add(10,42,26,14,-6,0,-Math.PI/2,0xf6f1e8);
+    add(44,28,0,13,-30,0,0,0xe8e6e0);
+    add(90,90,0,-18,0,-Math.PI/2,0,0xf1eeea);
+    return sc;
+  }
+
+  /* ───────── 렌더러 하네스 ───────── */
+  let renderer,scene,camera,group,product=null,ground,pmrem;
+  let tubeMat=null,capMat=null,neckMat=null,printMap=null,ormTex=null,userTex=null,lidPivot=null;
+  let ready=false,mounted=false,canvas,ro,badge,aniso=8;
+  let curD=40,curOval=false,curTaper=true,curLen=1,curFinish='soft',curCut='';
+  let printInfo={name:'',vol:''};
+  const cssTube=()=>document.querySelector('.model3d.m-tube');
+  const currentCopy=()=>({ name:printInfo.name, vol:printInfo.vol });
+  function mkTex(cvs,srgb){ const t=new THREE.CanvasTexture(cvs); if(srgb) t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=Math.min(aniso,8); return t; }
+
+  function disposeProduct(){
+    if(!product) return;
+    product.traverse(o=>{ if(o.geometry)o.geometry.dispose();
+      if(o.material){ const ms=Array.isArray(o.material)?o.material:[o.material]; ms.forEach(mm=>{ Object.values(mm).forEach(v=>v&&v.isTexture&&v.dispose()); mm.dispose(); }); } });
+    group.remove(product); product=null;
+  }
+  function build(){
+    disposeProduct();
+    const s=makeSpec(curD,curOval,curTaper,curLen);
+    // 컷팅유형: R컷팅 → 상단 모서리 라운드↑, 일자컷팅 → 샤프
+    if(/R\s*컷팅|라운드/i.test(curCut)) s.cornerR=clamp(s.cornerR*1.5,1.2,4.5);
+    else if(/일자/.test(curCut)) s.cornerR=clamp(s.cornerR*0.45,0.6,3.2);
+    const fin=FINISH[curFinish]||FINISH.soft;
+    printMap=mkTex(paint(s,'color',fin,currentCopy()),true);
+    ormTex=mkTex(paint(s,'orm',fin,currentCopy()),false);
+    const baseMap=userTex||printMap;
+    tubeMat=new THREE.MeshPhysicalMaterial({ map:baseMap, roughnessMap:ormTex, metalnessMap:ormTex, bumpMap:printMap, bumpScale:-0.004,
+      color:0xffffff, roughness:1, metalness:1, reflectivity:fin.refl, clearcoat:fin.cc, clearcoatRoughness:fin.ccr, envMapIntensity:1.0, side:THREE.DoubleSide });
+    if(fin.metal>0){ tubeMat.metalnessMap=null; tubeMat.metalness=fin.metal; }
+    neckMat=new THREE.MeshPhysicalMaterial({ color:new THREE.Color(PALETTE.tube).multiplyScalar(0.92), roughness:0.5, metalness:0, reflectivity:0.48, envMapIntensity:0.9, side:THREE.DoubleSide });
+    capMat=new THREE.MeshPhysicalMaterial({ color:new THREE.Color(PALETTE.cap), roughness:curFinish==='soft'?0.28:0.2, metalness:curFinish==='alu'?0.8:0, reflectivity:0.55, clearcoat:0.3, clearcoatRoughness:0.2, envMapIntensity:1.0, side:THREE.DoubleSide });
+    const RAD=128;
+    const tube=new THREE.Mesh(buildTube(s,RAD),tubeMat);
+    const orifice=new THREE.Mesh(buildOrifice(s,96),neckMat);
+    const cp=buildCapParts(s,RAD);
+    const capBase=new THREE.Mesh(cp.base,capMat);
+    const capLid=new THREE.Mesh(cp.lid,capMat);
+    const pivot=new THREE.Group(); pivot.position.set(0,cp.hinge,s.capB*MM); capLid.position.set(0,-cp.hinge,-s.capB*MM); pivot.add(capLid);
+    [tube,orifice,capBase,capLid].forEach(m=>{ m.castShadow=true; m.receiveShadow=true; });
+    product=new THREE.Group(); product.add(tube,orifice,capBase,pivot);
+    product.position.y=-(s.H*MM)/2;   // 중심을 원점으로 (group 회전 축)
+    product.rotation.y=Math.PI;       // 인쇄 전면(u=0.5)·엄지 누름홈을 카메라 쪽으로, 힌지·바코드는 후면
+    group.add(product); lidPivot=pivot;
+    if(ground) ground.position.y=-(s.H*MM)/2-0.02;
+    window.__TubeSpec=s;
+    frameCam();
+  }
+  function frameCam(){
+    const s=window.__TubeSpec; if(!s||!camera) return;
+    const H=s.H*MM, W=(s.W||s.D)*MM, vFov=camera.fov*Math.PI/180;
+    const distV=(H/0.86)/(2*Math.tan(vFov/2));
+    const asp=camera.aspect||1;
+    const distH=(W*1.25/2)/(asp*Math.tan(vFov/2));
+    const dist=Math.max(distV,distH);
+    camera.position.set(0,0,dist); camera.lookAt(0,0,0); camera.updateProjectionMatrix();
   }
   function init(){
     if(ready) return true;
@@ -1926,25 +2189,35 @@
       renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
       renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
       renderer.outputColorSpace=THREE.SRGBColorSpace;
-      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.1;
+      renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
       renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+      aniso=renderer.capabilities.getMaxAnisotropy();
       canvas=renderer.domElement; canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
       scene=new THREE.Scene();
-      const pmrem=new THREE.PMREMGenerator(renderer);
-      scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
-      camera=new THREE.PerspectiveCamera(32,1,0.1,100); camera.position.set(0,0,9.5);
-      const key=new THREE.DirectionalLight(0xffffff,2.6); key.position.set(3.5,6,5); key.castShadow=true; key.shadow.mapSize.set(2048,2048); key.shadow.radius=8; key.shadow.bias=-0.0004;
-      key.shadow.camera.near=1; key.shadow.camera.far=30; key.shadow.camera.left=-4; key.shadow.camera.right=4; key.shadow.camera.top=5; key.shadow.camera.bottom=-5;
+      pmrem=new THREE.PMREMGenerator(renderer);
+      scene.environment=pmrem.fromScene(studioEnv(),0.04).texture;
+      camera=new THREE.PerspectiveCamera(26,1,0.05,600); camera.position.set(0,0,40);
+      const key=new THREE.DirectionalLight(0xffffff,2.4); key.position.set(-4.5,7.5,6); key.castShadow=true; key.shadow.mapSize.set(2048,2048); key.shadow.radius=6; key.shadow.bias=-0.0009;
+      key.shadow.camera.near=1; key.shadow.camera.far=60; key.shadow.camera.left=-8; key.shadow.camera.right=8; key.shadow.camera.top=12; key.shadow.camera.bottom=-12;
       scene.add(key);
-      scene.add(new THREE.DirectionalLight(0xffffff,0.5).translateX(-5).translateY(1.5));
-      scene.add(new THREE.AmbientLight(0xffffff,0.12));
-      const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.ShadowMaterial({opacity:0.15})); ground.rotation.x=-Math.PI/2; ground.position.y=-2.15; ground.receiveShadow=true; scene.add(ground);
-      group=buildTube(); scene.add(group);
+      const fillL=new THREE.DirectionalLight(0xf2f5fa,0.6); fillL.position.set(6,5,-4); scene.add(fillL);
+      const rimL=new THREE.DirectionalLight(0xffffff,0.9); rimL.position.set(0,5,9); scene.add(rimL);
+      scene.add(new THREE.AmbientLight(0xffffff,0.08));
+      ground=new THREE.Mesh(new THREE.PlaneGeometry(120,120),new THREE.ShadowMaterial({opacity:0.16})); ground.rotation.x=-Math.PI/2; ground.position.y=-6; ground.receiveShadow=true; scene.add(ground);
+      group=new THREE.Group(); scene.add(group);
+      build();
       ready=true; return true;
     }catch(e){ console.warn('[TubeGL] init 실패 → CSS 폴백:',e.message); ready=false; return false; }
   }
-  function sizeTo(el){ const w=Math.max(1,el.clientWidth),h=Math.max(1,el.clientHeight); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  function sizeTo(el){ const w=Math.max(1,el.clientWidth),h=Math.max(1,el.clientHeight); renderer.setSize(w,h,false); camera.aspect=w/h; frameCam(); }
   function frame(){ if(ready&&mounted) renderer.render(scene,camera); }
+  function repaintPrint(){
+    if(!tubeMat) return; const s=window.__TubeSpec; const fin=FINISH[curFinish]||FINISH.soft;
+    if(printMap) printMap.dispose();
+    printMap=mkTex(paint(s,'color',fin,currentCopy()),true);
+    tubeMat.bumpMap=printMap; if(!userTex) tubeMat.map=printMap;
+    tubeMat.needsUpdate=true; frame();
+  }
 
   window.__TubeGL={
     isReady:()=>ready&&mounted,
@@ -1958,9 +2231,15 @@
     },
     hide(){ mounted=false; if(canvas) canvas.style.display='none'; const t=cssTube(); if(t) t.style.visibility=''; if(badge&&badge.parentNode) badge.parentNode.removeChild(badge); },
     setRotation(rx,ry){ if(!ready||!group) return; group.rotation.set(rx*DEG,ry*DEG,0); frame(); },
-    setPrint(name,vol){ printInfo={name:name||'',vol:vol||''}; if(bodyMat&&!userTex){ if(placeholderTex)placeholderTex.dispose(); placeholderTex=makeBodyTexture(); bodyMat.map=placeholderTex; bodyMat.needsUpdate=true; frame(); } },
-    setBodyTexture(url){ if(!ready||!bodyMat) return; if(!url){ userTex=null; bodyMat.map=placeholderTex; bodyMat.needsUpdate=true; frame(); return; }
-      const img=new Image(); img.onload=()=>{ const t=new THREE.CanvasTexture(img); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=8; userTex=t; bodyMat.map=t; bodyMat.needsUpdate=true; frame(); }; img.src=url; }
+    setPrint(name,vol,opts){
+      printInfo={name:name||'',vol:vol||''};
+      const cut=(opts&&opts.cut)||'';
+      if(cut!==curCut){ curCut=cut; if(ready){ build(); frame(); } }   // 형상 변경 → 재빌드
+      else if(ready) repaintPrint();                                   // 인쇄만 갱신
+    },
+    setBodyTexture(url){ if(!ready||!tubeMat) return;
+      if(!url){ userTex=null; tubeMat.map=printMap; tubeMat.needsUpdate=true; frame(); return; }
+      const img=new Image(); img.onload=()=>{ const t=new THREE.CanvasTexture(img); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.anisotropy=Math.min(aniso,8); userTex=t; tubeMat.map=t; tubeMat.needsUpdate=true; frame(); }; img.src=url; }
   };
   if(window.__viewerType==='tube') window.__TubeGL.show();
 })();
